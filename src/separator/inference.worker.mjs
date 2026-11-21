@@ -1,4 +1,4 @@
-import {SAMPLE_RATE, N, HOP, BINS, WINDOW, createFFT, istftFrame, mixGain} from './dsp.mjs';
+import {N, HOP, BINS, WINDOW, createFFT, istftFrame, mixGain} from './dsp.mjs';
 import {CHUNK, MAX_INFERENCE_MS, PAIR_BUDGET_MS} from './timing.mjs';
 import {loadModel} from './model.mjs';
 import {createHistory} from './history.mjs';
