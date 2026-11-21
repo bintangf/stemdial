@@ -1,23 +1,37 @@
 import {SAMPLE_RATE, N, HOP, BINS, WINDOW, createFFT, istftFrame, mixGain} from './dsp.mjs';
-import {CHUNK, MAX_INFERENCE_MS} from './timing.mjs';
+import {CHUNK, MAX_INFERENCE_MS, PAIR_BUDGET_MS} from './timing.mjs';
 import {loadModel} from './model.mjs';
 import {createHistory} from './history.mjs';
-import {createGate} from './gate.mjs';
+import {createGate, mean} from './gate.mjs';
 import {isSilentPair} from './silence.mjs';
 
 const PAIR = CHUNK * 2;
 const FRAMES = PAIR / HOP;
 const LOOKAHEAD = N - HOP;
 const QUEUE_MAX = 4; // chunks; one inference consumes two
-const BUDGET = PAIR / SAMPLE_RATE * 1000;
 const DEBUG = false; // log reconstruction levels
 const IDENTITY = false;
 
 const post = (msg, transfer) => self.postMessage(msg, transfer || []);
 const status = (state, message) => post({type: 'status', state, message});
+let slow = false;
+const fallback = message => {
+  if (slow) return;
+  slow = true;
+  status('fallback', message);
+};
+// Latency: a single pair must fit in the slack the longest buffer leaves.
 const gate = createGate({
   limit: MAX_INFERENCE_MS,
-  onSlow: p95 => status('fallback', `Slow GPU: ${Math.round(p95)} ms per ${Math.round(BUDGET)} ms of audio, over the ${Math.round(MAX_INFERENCE_MS)} ms the longest buffer allows`),
+  onSlow: p95 => fallback(`Slow GPU: ${Math.round(p95)} ms per ${Math.round(PAIR_BUDGET_MS)} ms of audio, over the ${Math.round(MAX_INFERENCE_MS)} ms the longest buffer allows`),
+});
+// Throughput: pairs that take longer than the audio they cover back the queue
+// up until chunks are dropped and play unseparated.
+const throughput = createGate({
+  limit: PAIR_BUDGET_MS,
+  minimum: 10,
+  stat: mean,
+  onSlow: avg => fallback(`Slow GPU: ${Math.round(avg)} ms per ${Math.round(PAIR_BUDGET_MS)} ms of audio, too slow to keep up`),
 });
 
 let model, history, fft = createFFT(), busy = false;
@@ -85,6 +99,7 @@ function rebuildInput(accL, accR, wsum) {
 }
 
 async function processPair(a, b) {
+  const started = performance.now();
   const next = queue[0]; // lookahead chunk
   const silent = isSilentPair(a.l, a.r, b.l, b.r);
   if (needReset) reset();
@@ -142,9 +157,10 @@ async function processPair(a, b) {
     carryL.fill(0); carryR.fill(0); carryW.fill(0);
   }
   prevL = workL.slice(PAIR, N + PAIR); prevR = workR.slice(PAIR, N + PAIR);
+  throughput.push(performance.now() - started);
 
   post({
-    type: 'pair', index: a.index, ms, queue: queue.length, gate: gate.fired, silent,
+    type: 'pair', index: a.index, ms, queue: queue.length, gate: slow, silent,
     vocalL, vocalR, instL, instR,
   }, [vocalL.buffer, vocalR.buffer, instL.buffer, instR.buffer]);
 }

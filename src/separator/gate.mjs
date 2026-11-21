@@ -3,7 +3,9 @@ export function percentile(values, p) {
   return sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p))];
 }
 
-export function createGate({limit, onSlow, window = 20, minimum = 3}) {
+export const mean = values => values.reduce((sum, value) => sum + value, 0) / values.length;
+
+export function createGate({limit, onSlow, window = 20, minimum = 3, stat = values => percentile(values, 0.95)}) {
   const timings = [];
   let fired = false;
   return {
@@ -12,10 +14,10 @@ export function createGate({limit, onSlow, window = 20, minimum = 3}) {
       timings.push(ms);
       if (timings.length > window) timings.shift();
       if (fired || timings.length < minimum) return false;
-      const p95 = percentile(timings, 0.95);
-      if (p95 <= limit) return false;
+      const value = stat(timings);
+      if (value <= limit) return false;
       fired = true;
-      onSlow(p95);
+      onSlow(value);
       return true;
     },
   };
