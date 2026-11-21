@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-21
 
-StemDial is a Chrome extension that removes or isolates the vocal in audio playing in a browser tab. All processing runs on your device.
+StemDial is an extension for Chromium-based browsers that removes or isolates the vocal in audio playing in a browser tab. All processing runs on your device.
 
 ## What StemDial handles
 

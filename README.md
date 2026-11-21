@@ -1,6 +1,6 @@
 # StemDial
 
-On-device AI vocal remover for Chrome. Play a song in a tab, open StemDial, press **Start on this tab**, and the singer drops away while the video keeps playing. Switch to Vocal focus to keep the voice and lose the backing. Transpose shifts pitch up to 12 semitones in either direction without changing tempo.
+On-device AI vocal remover for Chromium-based browsers (Chrome, Edge, Brave, and others). Play a song in a tab, open StemDial, press **Start on this tab**, and the singer drops away while the video keeps playing. Switch to Vocal focus to keep the voice and lose the backing. Transpose shifts pitch up to 12 semitones in either direction without changing tempo.
 
 No account, no subscription, no upload. The model is bundled and runs on your GPU.
 
@@ -20,7 +20,7 @@ Instrumental and Vocal focus keep their own reduction level. Use **− / +** for
 
 ## Requirements
 
-Chrome desktop 116 or newer, with hardware acceleration and a working WebGPU adapter. Check `chrome://gpu` if the AI never starts; StemDial falls back to a stereo filter and says so in the popup.
+A Chromium-based desktop browser, version 116 or newer, with hardware acceleration and a working WebGPU adapter. Development and testing happen on Chrome. Check `chrome://gpu` if the AI never starts; StemDial falls back to a stereo filter and says so in the popup.
 
 The AI adds a delay between the video and the sound, because the separator needs a slice of future audio before it can decide what is a voice. The delay is measured on your machine: 372 ms on this MacBook Air, longer on a slower GPU. The popup shows the value in use.
 
