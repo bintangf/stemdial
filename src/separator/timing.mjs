@@ -5,6 +5,9 @@ export const RATE = 44100;
 export const MIN_CHUNKS = 4;
 export const MAX_CHUNKS = 6;
 export const MAX_DELAY = MAX_CHUNKS * CHUNK;
+// One inference covers two chunks, so the worker must finish a pair, DSP
+// included, within two chunks of audio on average or its queue overflows.
+export const PAIR_BUDGET_MS = 2 * CHUNK / RATE * 1000;
 // Inference is the only part that may overrun the longest buffer.
 export const MAX_INFERENCE_MS = (MAX_CHUNKS - 3) * CHUNK / RATE * 1000 * 0.95;
 
