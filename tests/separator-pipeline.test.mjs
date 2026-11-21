@@ -1,8 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {BINS} from '../src/separator/dsp.mjs';
+import {BINS, mixGain} from '../src/separator/dsp.mjs';
 import {createHistory} from '../src/separator/history.mjs';
 import {createGate, percentile} from '../src/separator/gate.mjs';
+
+test('the vocal prediction is held to the mixture magnitude', () => {
+  assert.equal(mixGain(0.3, 0.1, 1, 1), 1);
+  assert.equal(mixGain(1, 1, 4, 4), 1);
+  assert.equal(mixGain(3, 4, 0, 0), 0);
+  assert.equal(mixGain(0, 0, 0, 0), 1);
+  const gain = mixGain(3, 4, 1, 0);
+  assert.ok(Math.abs(Math.hypot(3 * gain, 4 * gain) - 1) < 1e-12);
+});
 
 test('percentile picks the nearest rank and tolerates one sample', () => {
   assert.equal(percentile([100, 101, 500], 0.95), 101);

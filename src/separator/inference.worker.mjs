@@ -1,4 +1,4 @@
-import {SAMPLE_RATE, N, HOP, BINS, WINDOW, createFFT, istftFrame} from './dsp.mjs';
+import {SAMPLE_RATE, N, HOP, BINS, WINDOW, createFFT, istftFrame, mixGain} from './dsp.mjs';
 import {CHUNK, MAX_INFERENCE_MS} from './timing.mjs';
 import {loadModel} from './model.mjs';
 import {createHistory} from './history.mjs';
@@ -58,10 +58,15 @@ function rebuildStem(out, accL, accR, wsum) {
   const outR = new Float32Array(BINS), outIR = new Float32Array(BINS);
   for (let f = 0; f < FRAMES; f++) {
     const t = model.frames - FRAMES + f;
+    const src = f * 4 * BINS;
     for (let bin = 0; bin < BINS; bin++) {
       const p = bin * model.frames + t;
-      outL[bin] = out[p] * 1.025; outIL[bin] = out[BINS * model.frames + p] * 1.025;
-      outR[bin] = out[2 * BINS * model.frames + p] * 1.025; outIR[bin] = out[3 * BINS * model.frames + p] * 1.025;
+      const l = mixGain(out[p], out[BINS * model.frames + p], frameBuf[src + bin], frameBuf[src + BINS + bin]);
+      const r = mixGain(out[2 * BINS * model.frames + p], out[3 * BINS * model.frames + p],
+        frameBuf[src + 2 * BINS + bin], frameBuf[src + 3 * BINS + bin]);
+      outL[bin] = out[p] * 1.025 * l; outIL[bin] = out[BINS * model.frames + p] * 1.025 * l;
+      outR[bin] = out[2 * BINS * model.frames + p] * 1.025 * r;
+      outIR[bin] = out[3 * BINS * model.frames + p] * 1.025 * r;
     }
     istftFrame(fft, outL, outIL, outR, outIR, 0, accL, accR, wsum, f * HOP);
   }

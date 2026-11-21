@@ -56,7 +56,7 @@ One inference covers two 93 ms chunks. `src/separator/timing.mjs` picks the buff
 
 The chosen delay is stored as `sepDelay`. The next session starts its monitor at that value so the first sound plays immediately. Once the separator reports its own buffer, `monitor.retune` ramps the dry path to the measured delay before the handover, so a faster session can shrink the delay again instead of inheriting the slowest past run.
 
-Playback never waits for the GPU. A slice with no result plays the dry signal, so a late pair produces a momentary vocal instead of a pause or a growing offset. A pair below -60 dBFS is treated as silence and plays the dry signal too, so the model noise floor cannot add hiss during quiet passages. `src/separator/separator.worklet.mjs` keeps the dry and wet paths on the same sample clock; `tests/separator-playout.test.mjs` checks that a missing pair does not shift later samples.
+Playback never waits for the GPU. A slice with no result plays the dry signal, so a late pair produces a momentary vocal instead of a pause or a growing offset. A pair below -60 dBFS is treated as silence and plays the dry signal too, and the vocal prediction is scaled down to the mixture's magnitude wherever it overshoots, so the model noise floor cannot add hiss during quiet passages either. `src/separator/separator.worklet.mjs` keeps the dry and wet paths on the same sample clock; `tests/separator-playout.test.mjs` checks that a missing pair does not shift later samples.
 
 While the first result is still pending, `src/offscreen/offscreen.js` plays a delayed copy of the tab audio and fades to the separator output when it starts.
 

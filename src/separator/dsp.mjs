@@ -6,6 +6,15 @@ export const OVERLAP = N / HOP;
 
 export const WINDOW = Float64Array.from({length: N}, (_, i) => 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N));
 
+// The model has a noise floor of its own. Scaling a prediction down to the
+// mixture magnitude in bins where it is louder keeps the instrumental from
+// gaining energy the source never had, which is what makes quiet passages hiss.
+export function mixGain(vRe, vIm, xRe, xIm) {
+  const v2 = vRe * vRe + vIm * vIm;
+  const x2 = xRe * xRe + xIm * xIm;
+  return v2 > x2 && v2 > 0 ? Math.sqrt(x2 / v2) : 1;
+}
+
 // 5120 = 5 * 1024, so a mixed-radix FFT keeps every stage radix 2 or 5.
 export function createFFT() {
   const n2 = 1024;
