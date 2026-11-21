@@ -6,7 +6,7 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
-  "description": "Live vocal remover for any Chrome tab. Strip the vocal for karaoke or keep only the voice. Transpose up to 12 semitones.",
+  "description": "Live vocal remover for any browser tab. Strip the vocal for karaoke or keep only the voice. Transpose up to 12 semitones.",
   "permissions": [
     "activeTab",
     "tabCapture",
