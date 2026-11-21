@@ -44,6 +44,7 @@ Requires Chrome 116 or newer. With WebGPU the separator runs; without it the ext
 
 ## Before submitting
 
+- [ ] Upload `docs/store/social-preview.png` (1280x640) in repository Settings, General, Social preview. GitHub shows the owner avatar on the repo page itself; a repo cannot carry its own avatar unless it belongs to an organization.
 - [x] Icons: 16/32/48/128 PNG in `src/icons/`, declared in `manifest.json`; source SVGs in `tools/icons/`.
 - [x] Screenshot: `docs/store/screenshot-1.png`, 1280x800, popup on a playing tab.
 - [ ] Confirm the privacy policy URL is public.
