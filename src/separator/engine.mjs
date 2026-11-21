@@ -29,7 +29,7 @@ export async function createSeparator({ctx, stream, onStatus, onStats, initialGa
         counters.pairs++;
         counters.maxMs = Math.max(counters.maxMs, m.ms);
         processor?.port.postMessage(m, [m.vocalL.buffer, m.vocalR.buffer, m.instL.buffer, m.instR.buffer]);
-      } else if (m.type === 'skip') { counters.skips++; processor?.port.postMessage(m); }
+      } else if (m.type === 'skip') { counters.skips++; }
     };
     worker.onerror = ({message}) => reject(new Error(message));
   });
