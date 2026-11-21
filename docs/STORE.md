@@ -28,7 +28,7 @@ None. All JavaScript, the ONNX model, and the ONNX Runtime WASM binaries ship in
 
 ## Privacy policy URL
 
-https://github.com/bintangf/stemdial/blob/develop/PRIVACY.md
+https://bintangf.github.io/stemdial/privacy.html
 
 ## Description attribution
 

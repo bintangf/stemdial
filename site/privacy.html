@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy · StemDial</title>
+<meta name="description" content="StemDial processes audio on your device. It does not record, upload, or share audio.">
+<link rel="icon" href="assets/icon32.png" sizes="32x32">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="bar">
+  <a class="brand" href="./">StemDial</a>
+  <nav aria-label="Sections">
+    <a href="./">Home</a>
+    <a href="https://github.com/bintangf/stemdial">GitHub</a>
+    <a href="https://github.com/bintangf/stemdial/issues">Issues</a>
+  </nav>
+</header>
+
+<main id="main" class="policy">
+  <h1>Privacy policy</h1>
+  <p class="note">Last updated: 2026-11-21</p>
+  <p>StemDial is a Chrome extension that removes or isolates the vocal in audio playing in a browser tab. All processing runs on your device.</p>
+
+  <h2>What StemDial handles</h2>
+  <ul>
+    <li>Audio from the tab you choose, and only after you press <strong>Start on this tab</strong>.</li>
+    <li>Your mix settings: mode, reduction level, transpose, and the measured audio delay.</li>
+  </ul>
+
+  <h2>What StemDial does not do</h2>
+  <ul>
+    <li>It does not record, save, upload, or transmit audio.</li>
+    <li>It does not send audio, settings, or usage data to any server.</li>
+    <li>It has no accounts, analytics, telemetry, ads, or tracking.</li>
+    <li>It does not read page content, form data, passwords, or browsing history.</li>
+  </ul>
+
+  <h2>Where processing happens</h2>
+  <p>Chrome's tab capture API feeds the chosen tab's audio into an offscreen document, where a bundled vocal separation model runs through WebGPU and Web Audio, and the result is played back in the same tab. The model and ONNX Runtime are packaged inside the extension; nothing is downloaded at runtime.</p>
+
+  <h2>What is stored</h2>
+  <p><code>chrome.storage.local</code> and <code>chrome.storage.session</code> hold only:</p>
+  <ul>
+    <li>the current mix (mode, reduction levels, semitones),</li>
+    <li>the measured audio delay for your machine,</li>
+    <li>the last engine status shown in the popup.</li>
+  </ul>
+  <p>This stays in your browser profile. Removing the extension deletes it.</p>
+
+  <h2>Permissions</h2>
+  <ul>
+    <li><code>tabCapture</code>: capture audio from the tab you start, only after your click.</li>
+    <li><code>activeTab</code>: limit that access to the tab you are looking at.</li>
+    <li><code>offscreen</code>: run the audio graph and the local model in a hidden document while a session is active.</li>
+    <li><code>storage</code>: remember your mix and the measured delay.</li>
+  </ul>
+  <p>StemDial requests no host permissions and does not access websites on its own.</p>
+
+  <h2>Third-party components</h2>
+  <ul>
+    <li>Vocal separation model: KUIELab MDX-Net weights, CC BY 4.0. Attribution and provenance are in the repository at <code>docs/ASSETS.md</code>.</li>
+    <li>ONNX Runtime Web 1.23.2, MIT. Licence text ships in the package at <code>src/separator/ort/LICENSE</code>.</li>
+  </ul>
+  <p>Both are bundled with the extension. No third-party script is loaded from the network.</p>
+
+  <h2>Changes</h2>
+  <p>Material changes to this policy are published on this page and recorded in the repository history.</p>
+
+  <h2>Contact</h2>
+  <p>Open an issue at <a href="https://github.com/bintangf/stemdial/issues">github.com/bintangf/stemdial/issues</a>.</p>
+</main>
+
+<footer>
+  <p><a href="./">Home</a> · <a href="https://github.com/bintangf/stemdial">Source</a> · <a href="https://github.com/bintangf/stemdial/issues">Issues</a></p>
+</footer>
+</body>
+</html>

@@ -4,6 +4,8 @@ On-device AI vocal remover for Chrome. Play a song in a tab, open StemDial, pres
 
 No account, no subscription, no upload. The model is bundled and runs on your GPU.
 
+Site: https://bintangf.github.io/stemdial/
+
 StemDial is in beta. Expect artefacts: separation quality depends on the recording, and a busy mix gives the separator more to untangle than a sparse one. Report problems on the repository issue tracker.
 
 <img src="docs/store/screenshot-1.png" width="440" alt="StemDial popup with Instrumental, Vocal focus, and Full mix modes, reduction level, and transpose controls">

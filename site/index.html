@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StemDial: on-device vocal remover for Chrome</title>
+<meta name="description" content="Remove or isolate the vocal in any Chrome tab. The separation model runs on your GPU. No account, no upload, no subscription.">
+<meta property="og:title" content="StemDial">
+<meta property="og:description" content="Remove or isolate the vocal in any Chrome tab, on your device.">
+<meta property="og:image" content="https://bintangf.github.io/stemdial/assets/social-preview.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="assets/icon32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/icon128.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="bar">
+  <a class="brand" href="./">StemDial</a>
+  <nav aria-label="Sections">
+    <a href="#modes">Modes</a>
+    <a href="#install">Install</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="https://github.com/bintangf/stemdial">GitHub</a>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="hero">
+    <div class="copy">
+      <h1>Remove the vocal from any tab.</h1>
+      <p class="lede">Instrumental, vocal focus, or transpose only. The separation model runs on your GPU, inside the browser. Nothing is uploaded.</p>
+      <p class="actions">
+        <a class="button" href="https://github.com/bintangf/stemdial/releases">Download StemDial</a>
+        <a class="quiet" href="#install">Install steps</a>
+      </p>
+      <p class="note">Chrome 116 or newer on desktop, with WebGPU. Without WebGPU it falls back to a stereo filter and says so in the popup.</p>
+    </div>
+    <figure class="shot">
+      <img src="assets/popup.png" width="790" height="768" alt="StemDial popup with Instrumental, Vocal focus, and Full mix modes, a reduction level, and a transpose slider.">
+      <figcaption>Switch modes and transpose while the tab keeps playing.</figcaption>
+    </figure>
+  </section>
+
+  <section id="modes" class="modes">
+    <h2>Three modes</h2>
+    <dl>
+      <div>
+        <dt>Instrumental</dt>
+        <dd>The singer drops out. Bass and instruments stay.</dd>
+      </div>
+      <div>
+        <dt>Vocal focus</dt>
+        <dd>The voice stays. The backing is reduced.</dd>
+      </div>
+      <div>
+        <dt>Full mix</dt>
+        <dd>Nothing is separated. Transpose only. The separator still adds its audio delay.</dd>
+      </div>
+    </dl>
+    <p class="after">Instrumental and Vocal focus keep separate reduction levels, in 5% steps. Transpose covers 12 semitones each way without changing tempo. The popup shows the audio delay measured on your machine.</p>
+  </section>
+
+  <section id="install" class="install">
+    <h2>Install</h2>
+    <ol>
+      <li>Download the release zip and extract the <code>stemdial</code> folder.</li>
+      <li>Open <code>chrome://extensions</code>, turn on <strong>Developer mode</strong>, and choose <strong>Load unpacked</strong>. Pick that folder.</li>
+      <li>Play a song, open StemDial, and press <strong>Start on this tab</strong>.</li>
+    </ol>
+    <p>Chrome installs extensions from a folder or from the Web Store. A self-signed <code>.crx</code> is rejected unless an enterprise policy allows it, which is why the release is a zip.</p>
+  </section>
+
+  <section class="stay">
+    <h2>Audio stays here</h2>
+    <p>The extension captures the tab you start, separates it locally, and plays the result in the same tab. It does not record, store, or send audio anywhere. The model and ONNX Runtime are bundled in the package.</p>
+    <p><a href="privacy.html">Read the privacy policy</a></p>
+  </section>
+</main>
+
+<footer>
+  <p>MIT licensed. The vocal separator is the KUIELab MDX-Net model, used under CC BY 4.0.</p>
+  <p><a href="https://github.com/bintangf/stemdial">Source</a> · <a href="https://github.com/bintangf/stemdial/issues">Issues</a> · <a href="privacy.html">Privacy</a></p>
+</footer>
+</body>
+</html>
