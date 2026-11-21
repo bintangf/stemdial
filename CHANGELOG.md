@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- A pair under -60 dBFS plays the dry signal, so the separator no longer adds hiss when the tab is silent.
+
 ## 0.6.2 (2026-11-21)
 
 - Extension icons at 16, 32, 48, and 128 px.

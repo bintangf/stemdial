@@ -3,6 +3,7 @@ import {CHUNK, MAX_INFERENCE_MS} from './timing.mjs';
 import {loadModel} from './model.mjs';
 import {createHistory} from './history.mjs';
 import {createGate} from './gate.mjs';
+import {isSilentPair} from './silence.mjs';
 
 const PAIR = CHUNK * 2;
 const FRAMES = PAIR / HOP;
@@ -80,6 +81,7 @@ function rebuildInput(accL, accR, wsum) {
 
 async function processPair(a, b) {
   const next = queue[0]; // lookahead chunk
+  const silent = isSilentPair(a.l, a.r, b.l, b.r);
   if (needReset) reset();
 
   const workL = new Float32Array(N + PAIR + N);
@@ -111,12 +113,12 @@ async function processPair(a, b) {
   const ms = performance.now() - t0;
   gate.push(ms);
 
-  if (DEBUG && IDENTITY) rebuildInput(accL, accR, wsum);
-  else rebuildStem(out, accL, accR, wsum);
+  if (!silent && DEBUG && IDENTITY) rebuildInput(accL, accR, wsum);
+  else if (!silent) rebuildStem(out, accL, accR, wsum);
 
   const vocalL = new Float32Array(PAIR), vocalR = new Float32Array(PAIR);
   const instL = new Float32Array(PAIR), instR = new Float32Array(PAIR);
-  for (let i = 0; i < PAIR; i++) {
+  for (let i = 0; i < PAIR && !silent; i++) {
     const w = wsum[i] > 1e-6 ? 1 / wsum[i] : 0;
     const vl = accL[i] * w, vr = accR[i] * w;
     instL[i] = origL[i] - vl; instR[i] = origR[i] - vr;
@@ -124,16 +126,20 @@ async function processPair(a, b) {
     const vg = 2.3;
     vocalL[i] = vl * vg; vocalR[i] = vr * vg;
   }
-  if (DEBUG) {
+  if (DEBUG && !silent) {
     let ev = 0, es = 0;
     for (let i = 0; i < PAIR; i++) { ev += vocalL[i] * vocalL[i]; es += origL[i] * origL[i]; }
     console.log('stem rms', Math.sqrt(ev / PAIR).toFixed(4), 'src rms', Math.sqrt(es / PAIR).toFixed(4));
   }
   carryL = accL.slice(PAIR); carryR = accR.slice(PAIR); carryW = wsum.slice(PAIR);
+  if (silent) {
+    // Keep the clock and history, but drop the model noise floor.
+    carryL.fill(0); carryR.fill(0); carryW.fill(0);
+  }
   prevL = workL.slice(PAIR, N + PAIR); prevR = workR.slice(PAIR, N + PAIR);
 
   post({
-    type: 'pair', index: a.index, ms, queue: queue.length, gate: gate.fired,
+    type: 'pair', index: a.index, ms, queue: queue.length, gate: gate.fired, silent,
     vocalL, vocalR, instL, instR,
   }, [vocalL.buffer, vocalR.buffer, instL.buffer, instR.buffer]);
 }

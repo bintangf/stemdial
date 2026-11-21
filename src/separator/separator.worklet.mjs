@@ -35,12 +35,12 @@ class SeparatorWorklet extends AudioWorkletProcessor {
     };
   }
 
-  receive({index, vocalL, vocalR, instL, instR, queue, ms, gate, outMean, peak}) {
+  receive({index, vocalL, vocalR, instL, instR, queue, ms, gate, silent, outMean, peak}) {
     if (!this.active) return;
     for (const i of [index, index + 1]) {
       if (i < this.readChunk) continue;
       this.slots[i % SLOTS] = {
-        index: i, vocalL, vocalR, instL, instR,
+        index: i, vocalL, vocalR, instL, instR, silent: !!silent,
         off: i === index ? 0 : CHUNK,
       };
     }
@@ -86,7 +86,7 @@ class SeparatorWorklet extends AudioWorkletProcessor {
         const ready = slot && slot.index === this.readChunk;
         const next = this.slots[(this.readChunk + 1) % SLOTS];
         const fadeOut = this.readOff >= CHUNK - FADE && next?.index !== this.readChunk + 1;
-        const target = ready && !fadeOut ? 1 : 0;
+        const target = ready && !fadeOut && !slot.silent ? 1 : 0;
         this.wet += Math.max(-1 / FADE, Math.min(1 / FADE, target - this.wet));
         this.mixCur += Math.max(-step, Math.min(step, mixTarget - this.mixCur));
 
