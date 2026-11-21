@@ -1,0 +1,17 @@
+<!doctype html><pre id=o>start</pre><script type="module">
+import * as ort from '../src/separator/ort/ort.webgpu.min.mjs';
+const base = new URL('../src/separator/ort/', location.href).href;
+ort.env.wasm.wasmPaths = { 'ort-wasm-simd-threaded.asyncify.mjs': base + 'ort-wasm-simd-threaded.asyncify.mjs', 'ort-wasm-simd-threaded.asyncify.wasm': base + 'ort-wasm-simd-threaded.asyncify.wasm' };
+const log = (s) => { o.textContent += '\n' + s; };
+try {
+  const a = await navigator.gpu?.requestAdapter({powerPreference:'high-performance'});
+  log('adapter ' + !!a);
+  const m = await (await fetch('../src/separator/model/vocals.onnx')).arrayBuffer();
+  const t = performance.now();
+  const s = await ort.InferenceSession.create(m, {executionProviders:['webgpu'], graphOptimizationLevel:'basic'});
+  log('init ' + Math.round(performance.now()-t) + ' providers ' + JSON.stringify(s.executionProviders));
+  const feed = {}; feed[s.inputNames[0]] = new ort.Tensor('float32', new Float32Array(4*2048*512), [1,4,2048,512]);
+  for (let i=0;i<3;i++){ const t0=performance.now(); const r=await s.run(feed); log('run '+Math.round(performance.now()-t0)+' '+JSON.stringify(Object.values(r)[0].dims)); }
+} catch(e) { log('ERR '+e.message); }
+log('DONE');
+</script>

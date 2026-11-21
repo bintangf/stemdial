@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test
+        run: node --test tests/*.test.mjs
+      - name: Package
+        run: |
+          version="$(node -p "require('./manifest.json').version")"
+          prerelease=false
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            case "$GITHUB_REF_NAME" in
+              "v$version") ;;
+              "v$version"-*) prerelease=true ;;
+              *)
+                echo "Tag $GITHUB_REF_NAME does not match manifest version $version" >&2
+                exit 1
+                ;;
+            esac
+          fi
+          mkdir -p dist
+          git archive --prefix=stemdial/ --format=zip -o "dist/stemdial-$version.zip" HEAD
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "PRERELEASE=$prerelease" >> "$GITHUB_ENV"
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          args=(--title "StemDial $VERSION" --generate-notes --verify-tag)
+          [ "$PRERELEASE" = true ] && args+=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" dist/stemdial-*.zip "${args[@]}"
+      - name: Upload and publish to Chrome Web Store
+        if: github.ref_type == 'tag' && env.PRERELEASE == 'false' && vars.CWS_EXTENSION_ID != '' && vars.CWS_PUBLISHER_ID != ''
+        env:
+          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+        run: |
+          set -euo pipefail
+          token="$(curl -fsS https://oauth2.googleapis.com/token \
+            --data-urlencode "client_id=$CLIENT_ID" \
+            --data-urlencode "client_secret=$CLIENT_SECRET" \
+            --data-urlencode "refresh_token=$REFRESH_TOKEN" \
+            --data-urlencode grant_type=refresh_token | jq -r .access_token)"
+          base="https://chromewebstore.googleapis.com/v2/publishers/$PUBLISHER_ID/items/$EXTENSION_ID"
+          curl -fsS -H "Authorization: Bearer $token" -X POST -T dist/stemdial-*.zip \
+            "https://chromewebstore.googleapis.com/upload/v2/publishers/$PUBLISHER_ID/items/$EXTENSION_ID:upload" > upload.json
+          state="$(jq -r .uploadState upload.json)"
+          for try in $(seq 30); do
+            [ "$state" = "IN_PROGRESS" ] || break
+            sleep 10
+            state="$(curl -fsS -H "Authorization: Bearer $token" "$base:fetchStatus" | jq -r .uploadState)"
+          done
+          if [ "$state" != "SUCCESS" ]; then
+            echo "Upload state: $state" >&2
+            cat upload.json >&2
+            exit 1
+          fi
+          curl -fsS -H "Authorization: Bearer $token" -X POST "$base:publish"
+          echo "Submitted to review. Visibility stays as configured in the dashboard."

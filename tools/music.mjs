@@ -1,0 +1,10 @@
+import {chromium} from '/Users/bintang/.npm/_npx/9b9809298fe40d2c/node_modules/playwright-core/index.mjs';
+const b = await chromium.launchPersistentContext('', {executablePath: process.env.CHROME, headless: false, args: ['--enable-unsafe-webgpu', '--autoplay-policy=no-user-gesture-required']});
+const p = await b.newPage();
+p.on('console', (m) => console.log(m.text()));
+await p.goto('http://127.0.0.1:8125/tools/music.html');
+await p.setInputFiles('#file', process.env.SONG);
+await p.evaluate((offset) => window.runMusic(offset, ['instrumental', 'vocal']), Number(process.env.OFFSET || 33));
+await p.waitForFunction(() => document.body.innerText.includes('DONE'), null, {timeout: 240000});
+console.log(await p.textContent('#o'));
+await b.close();

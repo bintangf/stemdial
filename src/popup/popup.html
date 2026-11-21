@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>StemDial</title><link rel="stylesheet" href="popup.css"><script type="module" src="popup.js"></script></head>
+<body><main><header><h1>StemDial</h1><span>Live vocal remover</span></header><fieldset id="controls" disabled><legend>Tab mix</legend>
+<div class="modes"><label><input type="radio" name="mix" value="1" checked> Instrumental <small>Reduce vocals</small></label>
+<label><input type="radio" name="mix" value="-1"> Vocal focus <small>Reduce backing</small></label>
+<label><input type="radio" name="mix" value="0"> Full mix <small>Transpose only</small></label></div>
+<section class="adjust" id="reduction" aria-labelledby="reduceLabel"><strong id="reduceLabel">Vocal reduction</strong>
+<div class="stepper"><button data-step="-5" data-for="strength" aria-label="Decrease reduction by 5 percentage points">−</button><output id="strength" aria-labelledby="reduceLabel">100%</output><button data-step="5" data-for="strength" aria-label="Increase reduction by 5 percentage points">+</button></div></section>
+<section class="adjust"><div class="readout"><label for="pitch">Transpose</label><output id="amount" for="pitch">0 st</output></div>
+<div class="stepper"><button data-step="-1" data-for="pitch" aria-label="Lower pitch by one semitone">−</button><input id="pitch" type="range" min="-12" max="12" step="1" value="0"><button data-step="1" data-for="pitch" aria-label="Raise pitch by one semitone">+</button></div></section>
+<button id="power">Start on this tab</button></fieldset><p id="state" role="status">Reading tab state…</p></main></body></html>

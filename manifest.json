@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "StemDial",
+  "version": "0.6.1",
+  "minimum_chrome_version": "116",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "description": "Live vocal remover for any Chrome tab. Strip the vocal for karaoke or keep only the voice. Transpose up to 12 semitones.",
+  "permissions": [
+    "activeTab",
+    "tabCapture",
+    "offscreen",
+    "storage"
+  ],
+  "action": {
+    "default_title": "Open StemDial",
+    "default_popup": "src/popup/popup.html"
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  }
+}

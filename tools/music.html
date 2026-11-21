@@ -1,0 +1,78 @@
+<!doctype html><meta charset="utf-8"><pre id="o">idle</pre>
+<input id="file" type="file" accept="audio/*">
+<script type="module">
+import {createSeparator} from '../src/separator/engine.mjs';
+const log = (s) => { o.textContent += '\n' + s; };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+window.runMusic = async (offset, modes) => {
+  try {
+    const fileInput = document.getElementById('file');
+    const file = fileInput.files[0];
+    if (!file) throw new Error('no file');
+    const ctx = new AudioContext({sampleRate: 44100, latencyHint: 'interactive'});
+    const buffer = await ctx.decodeAudioData(await file.arrayBuffer());
+    await ctx.resume();
+    const dest = ctx.createMediaStreamDestination();
+
+    const voice = () => {
+      const band = ctx.createBiquadFilter();
+      band.type = 'bandpass';
+      band.frequency.value = 1200;
+      band.Q.value = 0.6;
+      const an = ctx.createAnalyser();
+      an.fftSize = 16384;
+      band.connect(an);
+      return {band, an};
+    };
+    const srcTap = voice();
+    const srcAn = srcTap.an;
+
+    let src = null;
+    async function play() {
+      src?.stop();
+      src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(dest);
+      src.connect(srcTap.band);
+      src.start(0, offset);
+    }
+
+    const engine = await createSeparator({ctx, stream: dest.stream, onStatus: (s, m) => log(s + ' ' + m)});
+    engine.node.connect(ctx.destination);
+    const outTap = voice();
+    engine.node.connect(outTap.band);
+    const outAn = outTap.an;
+
+    const buf = new Float32Array(outAn.fftSize);
+    const db = (an) => {
+      let e = 0;
+      for (let k = 0; k < 5; k++) {
+        an.getFloatTimeDomainData(buf);
+        for (const v of buf) e += v * v;
+      }
+      return 10 * Math.log10(e / (5 * buf.length) + 1e-12);
+    };
+    const settle = (ms) => sleep(Math.max(ms, 4000));
+
+    const out = {};
+    for (const mode of modes) {
+      await play();
+      await settle(7000);
+      engine.setMode(mode);
+      engine.setMix(1);
+      await settle(2500);
+      const srcRuns = [], outRuns = [];
+      for (let i = 0; i < 8; i++) { srcRuns.push(db(srcAn)); outRuns.push(db(outAn)); await sleep(120); }
+      const median = (a) => a.sort((x, y) => x - y)[4];
+      const s = median(srcRuns), o = median(outRuns);
+      out[mode] = {src: +s.toFixed(1), out: +o.toFixed(1), delta: +(o - s).toFixed(1)};
+      log(`${mode}: source ${out[mode].src} dB, stem ${out[mode].out} dB, delta ${out[mode].delta} dB`);
+    }
+    src?.stop();
+    engine.disconnect();
+    log('RESULT ' + JSON.stringify(out));
+  } catch (e) { log('ERR ' + e.message); }
+  log('DONE');
+};
+</script>

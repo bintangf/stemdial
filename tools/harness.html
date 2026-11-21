@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Separator harness</title>
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; margin: 20px; background: #15181c; color: #e8eaed; }
+  button, input { font: inherit; }
+  table { border-collapse: collapse; margin: 12px 0; }
+  td, th { border: 1px solid #394049; padding: 3px 8px; text-align: left; }
+  #status { padding: 6px 8px; background: #23272e; border-radius: 4px; white-space: pre-wrap; }
+</style>
+<h1>Separator harness</h1>
+<p>Synthetic mix: 800 Hz center (both channels) + 3000 Hz side (inverted right). Or load a file.</p>
+<p>
+  <button id="run">Run</button>
+  <input id="file" type="file" accept="audio/*">
+</p>
+<div id="status">idle</div>
+<h2>Measured</h2>
+<table id="stats"><thead><tr><th>inference ms</th><th>queue</th><th>latency ms</th></tr></thead><tbody></tbody></table>
+<pre id="out"></pre>
+<script type="module" src="./harness.js"></script>
