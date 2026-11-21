@@ -3,6 +3,7 @@
 ## Unreleased
 
 - A pair under -60 dBFS plays the dry signal, so the separator no longer adds hiss when the tab is silent.
+- The warm-up ignores the first two runs, and the monitor retunes to the delay this session measured, so a slow past run no longer pins every later session at a longer delay.
 
 ## 0.6.2 (2026-11-21)
 

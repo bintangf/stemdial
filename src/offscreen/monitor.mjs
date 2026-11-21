@@ -4,6 +4,7 @@ export function createMonitor(ctx, stream, delayMs, maxDelayMs = delayMs) {
   const source = ctx.createMediaStreamSource(stream);
   const delay = ctx.createDelay(maxDelayMs / ctx.sampleRate + 0.05);
   const gain = ctx.createGain();
+  let latencyMs = Math.round(delayMs / ctx.sampleRate * 1000);
   delay.delayTime.value = delayMs / ctx.sampleRate;
   source.connect(delay).connect(gain).connect(ctx.destination);
   let closed = false;
@@ -17,7 +18,16 @@ export function createMonitor(ctx, stream, delayMs, maxDelayMs = delayMs) {
   }
 
   return {
-    latencyMs: Math.round(delayMs / ctx.sampleRate * 1000),
+    get latencyMs() { return latencyMs; },
+    retune(targetMs) {
+      if (closed) return;
+      const now = ctx.currentTime;
+      const param = delay.delayTime;
+      param.cancelScheduledValues(now);
+      param.setValueAtTime(param.value, now);
+      param.linearRampToValueAtTime(targetMs / ctx.sampleRate, now + 0.08);
+      latencyMs = Math.round(targetMs / ctx.sampleRate * 1000);
+    },
     fadeTo(node) {
       if (closed) return;
       const now = ctx.currentTime;

@@ -54,7 +54,7 @@ One inference covers two 93 ms chunks. `src/separator/timing.mjs` picks the buff
 
 `src/separator/inference.worker.mjs` gates on the p95 of the last timings. The limit is `MAX_INFERENCE_MS` (about 265 ms), which is the most the longest buffer can absorb; above it the worker reports a fallback and `src/offscreen/offscreen.js` swaps to the stereo filter without stopping the stream.
 
-The chosen delay is stored as `sepDelay`. The next session starts its monitor at that value, so the handover from dry monitor to separator plays the same sample. If the new measurement needs a longer buffer the separator grows and the stored value is replaced.
+The chosen delay is stored as `sepDelay`. The next session starts its monitor at that value so the first sound plays immediately. Once the separator reports its own buffer, `monitor.retune` ramps the dry path to the measured delay before the handover, so a faster session can shrink the delay again instead of inheriting the slowest past run.
 
 Playback never waits for the GPU. A slice with no result plays the dry signal, so a late pair produces a momentary vocal instead of a pause or a growing offset. A pair below -60 dBFS is treated as silence and plays the dry signal too, so the model noise floor cannot add hiss during quiet passages. `src/separator/separator.worklet.mjs` keeps the dry and wet paths on the same sample clock; `tests/separator-playout.test.mjs` checks that a missing pair does not shift later samples.
 

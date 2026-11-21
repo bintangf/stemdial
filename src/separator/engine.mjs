@@ -6,7 +6,7 @@ const PITCH = new URL('./pitch.worklet.mjs', import.meta.url);
 const WORKER = new URL('./inference.worker.mjs', import.meta.url);
 const MODEL = new URL('./model/vocals.onnx', import.meta.url).href;
 
-export async function createSeparator({ctx, stream, onStatus, onStats, initialGain = 1, preferredDelay = 0}) {
+export async function createSeparator({ctx, stream, onStatus, onStats, initialGain = 1}) {
   const status = (state, message = '') => onStatus?.(state, message);
   const stats = (data) => onStats?.(data);
 
@@ -48,9 +48,9 @@ export async function createSeparator({ctx, stream, onStatus, onStats, initialGa
 
   try {
     const started = await ready;
-    // Reuse the delay this machine used last time so the monitor and the
-    // separator play the same sample; grow it if this session measured slower.
-    const delay = Math.max(delayFor(Number(started.pairMs) || 0), Number(preferredDelay) || 0);
+    // The measured warm-up sets the buffer. The monitor retunes to this value
+    // before the handover, so a faster session can shrink the delay again.
+    const delay = delayFor(Number(started.pairMs) || 0);
     status('loading', 'Starting audio');
     await Promise.all([ctx.audioWorklet.addModule(WORKLET), ctx.audioWorklet.addModule(PITCH)]);
     const source = ctx.createMediaStreamSource(stream);

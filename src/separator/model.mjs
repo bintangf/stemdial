@@ -29,13 +29,14 @@ export async function loadModel(modelUrl, {frames, onStatus}) {
 
   onStatus?.('loading', 'Warming up');
   const zeros = new Float32Array(4 * BINS * historyFrames);
-  // The first runs include shader compilation; the median of five reflects steady state.
+  // Compilation can slow the first runs; the median of the last five reflects steady state.
   const warm = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 7; i++) {
     const w0 = performance.now();
     await run(session, inputName, zeros, historyFrames);
     warm.push(performance.now() - w0);
   }
+  warm.splice(0, 2);
   warm.sort((a, b) => a - b);
 
   return {

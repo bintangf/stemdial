@@ -72,7 +72,7 @@ function recordStats(stats) {
   if (stats.gate != null) debug.gate = stats.gate;
 }
 
-async function startSeparator({ctx, stream, stored, monitor}) {
+async function startSeparator({ctx, stream, monitor}) {
   const {createSeparator} = await import('../separator/engine.mjs');
   let monitoring = true;
   let separator = null;
@@ -80,7 +80,6 @@ async function startSeparator({ctx, stream, stored, monitor}) {
     ctx,
     stream,
     initialGain: 0,
-    preferredDelay: stored,
     onStatus(state, message) {
       debug.kind = 'ai';
       debug.ctxState = ctx.state;
@@ -96,6 +95,9 @@ async function startSeparator({ctx, stream, stored, monitor}) {
       recordStats(stats);
     },
   });
+  // Move the monitor to the buffer this session measured, before the handover.
+  monitor.retune(separator.delay);
+  debug.monitor = monitor.latencyMs;
   return separator;
 }
 
@@ -117,7 +119,7 @@ async function open({streamId, sepDelay, mix}) {
 
     let nextSep = null, nextEngine = null;
     try {
-      nextSep = await startSeparator({ctx: nextCtx, stream: nextStream, stored, monitor});
+      nextSep = await startSeparator({ctx: nextCtx, stream: nextStream, monitor});
     } catch (error) {
       nextEngine = await createEngine(nextCtx, nextStream);
       monitor.close();

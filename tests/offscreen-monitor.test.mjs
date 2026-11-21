@@ -8,6 +8,7 @@ function fakeContext() {
     value,
     setValueAtTime(level, at) { calls.ramps.push(['set', level, at]); return this; },
     linearRampToValueAtTime(level, at) { calls.ramps.push(['ramp', level, at]); return this; },
+    cancelScheduledValues(at) { calls.ramps.push(['cancel', at]); return this; },
   });
   const node = type => {
     const self = {
@@ -35,6 +36,18 @@ test('the monitor delays the dry signal by the remembered value inside the longe
   const monitor = createMonitor(ctx, {id: 'stream'}, 4096, 24576);
   assert.ok(Math.abs(ctx.calls.delayMax - (24576 / 44100 + 0.05)) < 1e-9);
   assert.equal(monitor.latencyMs, 93);
+  monitor.close();
+});
+
+test('retune ramps the monitor to the delay this session measured', () => {
+  const ctx = fakeContext();
+  const monitor = createMonitor(ctx, {id: 'stream'}, 16384, 24576);
+  monitor.retune(4096);
+  assert.equal(monitor.latencyMs, 93);
+  const [cancel, set, ramp] = ctx.calls.ramps.slice(-3);
+  assert.deepEqual(cancel, ['cancel', 2]);
+  assert.deepEqual(set, ['set', 16384 / 44100, 2]);
+  assert.deepEqual(ramp, ['ramp', 4096 / 44100, 2.08]);
   monitor.close();
 });
 
