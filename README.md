@@ -48,6 +48,10 @@ The captured tab audio is cut into 93 ms slices, processed two at a time. A voca
 
 The bundled model is Kuielab MDX-Net, converted to fp16. Model provenance, hashes, and the CC BY 4.0 licence are in [docs/ASSETS.md](docs/ASSETS.md).
 
+## Privacy
+
+Audio is processed on your device and never uploaded. Details: [PRIVACY.md](PRIVACY.md). Store submission notes: [docs/STORE.md](docs/STORE.md).
+
 ## Source
 
 MIT. Development and release notes are in [docs/DEVELOPING.md](docs/DEVELOPING.md). Maintained by [@bintangf](https://github.com/bintangf).
