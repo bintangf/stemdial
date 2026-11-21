@@ -1,4 +1,4 @@
-// About -60 dBFS. Below this a pair is treated as silence, so the model's
+// About -60 dBFS. Below this a region is treated as silence, so the model's
 // noise floor cannot leak into the mix as hiss.
 export const SILENCE_RMS = 1e-3;
 

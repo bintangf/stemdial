@@ -22,7 +22,7 @@ Instrumental and Vocal focus keep their own reduction level. Use **− / +** for
 
 A Chromium-based desktop browser, version 116 or newer, with hardware acceleration and a working WebGPU adapter. Development and testing happen on Chrome. Check `chrome://gpu` if the AI never starts; StemDial falls back to a stereo filter and says so in the popup.
 
-The AI adds a delay between the video and the sound, because the separator needs a slice of future audio before it can decide what is a voice. The delay is measured on your machine: 372 ms on this MacBook Air, longer on a slower GPU. The popup shows the value in use.
+The AI adds a delay between the video and the sound, because the separator needs a slice of future audio before it can decide what is a voice. The delay is measured on your machine and never exceeds 300 ms: about 225 ms on this MacBook Air, more on a slower GPU. A GPU too slow to stay under 300 ms uses the stereo filter instead. The popup shows the value in use.
 
 When the GPU misses a slice, that slice plays as the original mix and the separator rejoins at the right place in the song. Nothing pauses or drifts out of sync.
 
@@ -46,7 +46,7 @@ Chrome installs extensions from a folder or from the Web Store. It rejects a sel
 
 ## How it works
 
-The captured tab audio is cut into 93 ms slices, processed two at a time. A vocal separation model runs on the GPU over a rolling 32-frame spectrogram, and the result is mixed back into the delayed original. Audio stays in the browser; the extension makes no network requests while playing.
+The captured tab audio is cut into 23 ms slices and separated in groups of four or more, depending on GPU speed. A vocal separation model runs on the GPU over a rolling 32-frame spectrogram, and the result is mixed back into the delayed original. Audio stays in the browser; the extension makes no network requests while playing.
 
 The bundled model is Kuielab MDX-Net, converted to fp16. Model provenance, hashes, and the CC BY 4.0 licence are in [docs/ASSETS.md](docs/ASSETS.md).
 

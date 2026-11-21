@@ -135,7 +135,7 @@ async function open({streamId, sepDelay, mix, policy}) {
     // The monitor starts at the delay this machine used last time, so the
     // handover plays the same sample as the separator. The offscreen document
     // has no storage API; the worker passes the value in.
-    const stored = Number(sepDelay) || 0;
+    const stored = Math.min(Number(sepDelay) || 0, MAX_DELAY);
     monitor = createMonitor(nextCtx, nextStream, stored || MAX_DELAY, MAX_DELAY);
     debug.monitor = monitor.latencyMs;
     debug.an = nextCtx.createAnalyser();
@@ -152,15 +152,16 @@ async function open({streamId, sepDelay, mix, policy}) {
         ai = await startSeparator({ctx: nextCtx, stream: nextStream, monitor});
         nextSep = ai.separator;
       } catch (error) {
-        monitor.close();
-        monitor = null;
+        // The monitor keeps playing until the replacement engine is connected.
         if (selectedPolicy === 'ai') {
           nextEngine = createDry(nextCtx, nextStream);
           report('dry', 'AI unavailable. Stereo fallback is off, so the original mix is playing.');
         } else {
           nextEngine = await createEngine(nextCtx, nextStream);
-          report('stereo', 'AI unavailable on this device');
+          report('stereo', error.userMessage || 'AI unavailable on this device');
         }
+        monitor.close();
+        monitor = null;
         console.warn('Separator unavailable:', error);
       }
     }

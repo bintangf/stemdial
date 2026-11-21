@@ -1,5 +1,6 @@
 import * as ort from './ort/ort.webgpu.min.mjs';
 import {BINS} from './dsp.mjs';
+import {MAX_FRAMES} from './timing.mjs';
 
 ort.env.wasm.numThreads = 1;
 // ORT logs "Unknown CPU vendor" on Apple Silicon; it is noise, not a failure.
@@ -13,7 +14,7 @@ ort.env.wasm.wasmPaths = {
 const run = (session, inputName, input, frames) =>
   session.run({[inputName]: new ort.Tensor('float32', input, [1, 4, BINS, frames])});
 
-export async function loadModel(modelUrl, {frames, onStatus}) {
+export async function loadModel(modelUrl, {onStatus}) {
   onStatus?.('loading', 'Checking WebGPU');
   if (!navigator.gpu) throw new Error('WebGPU unavailable');
   const adapter = await navigator.gpu.requestAdapter({powerPreference: 'high-performance'});
@@ -25,7 +26,7 @@ export async function loadModel(modelUrl, {frames, onStatus}) {
   const session = await ort.InferenceSession.create(model, {executionProviders: ['webgpu'], graphOptimizationLevel: 'basic'});
   const inputName = session.inputNames[0];
   const historyFrames = session.inputMetadata[0].shape[3];
-  if (!Number.isInteger(historyFrames) || historyFrames < frames) throw new Error('Unsupported model time dimension');
+  if (!Number.isInteger(historyFrames) || historyFrames < MAX_FRAMES) throw new Error('Unsupported model time dimension');
 
   onStatus?.('loading', 'Warming up');
   const zeros = new Float32Array(4 * BINS * historyFrames);
@@ -41,7 +42,7 @@ export async function loadModel(modelUrl, {frames, onStatus}) {
 
   return {
     frames: historyFrames,
-    pairMs: warm[2],
+    inferMs: warm[2],
     initMs: performance.now() - t0,
     async run(input) {
       const output = await run(session, inputName, input, historyFrames);

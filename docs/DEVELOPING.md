@@ -22,14 +22,15 @@ Top level is for people, subfolders for the build: `src/` runs, `tests/` checks,
 | `src/offscreen/monitor.mjs` | Delayed dry signal and its crossfade to the separator output. |
 | `src/separator/engine.mjs` | AI separator: capability check, worker, worklet graph, pitch stage, fallback signalling. |
 | `src/separator/capabilities.mjs` | Sample-rate and WebGPU checks before a worker starts. |
-| `src/separator/inference.worker.mjs` | Pair scheduler, STFT/ISTFT, stem mixing. |
+| `src/separator/inference.worker.mjs` | Model loading, slow-GPU gate, message routing. |
+| `src/separator/stream.mjs` | Region scheduler, STFT/ISTFT with partial lookahead, stem mixing. |
 | `src/separator/model.mjs` | ONNX Runtime session, warm-up, and one inference call. |
 | `src/separator/history.mjs` | Ring buffer of complex frames in model layout. |
 | `src/separator/gate.mjs` | Slow-GPU gates: rolling p95 for latency, rolling mean for throughput. |
-| `src/separator/separator.worklet.mjs` | Chunking, delay line, crossfade, and the stem/original blend. |
+| `src/separator/separator.worklet.mjs` | 1024-sample blocks, delay line, crossfade, and the stem/original blend. |
 | `src/separator/pitch.worklet.mjs` | Pitch shifter on the separator output. |
 | `src/separator/dsp.mjs` | FFT and STFT/ISTFT geometry fixed by the model. |
-| `src/separator/timing.mjs` | Chunk size, buffer bounds, and the inference gate. |
+| `src/separator/timing.mjs` | Block size, lookahead, the 300 ms cap, and the region/delay plan. |
 | `src/separator/model/vocals.onnx` | Bundled fp16 model. |
 | `src/separator/ort/` | Pinned ONNX Runtime Web build. |
 | `src/fallback/` | Stereo-fallback engine, FFT centre worklet, radix-2 FFT, and pitch, used when WebGPU is unavailable or too slow. |
@@ -53,13 +54,15 @@ The Zenodo record for these weights is CC BY 4.0, and the fp32 hash matches the 
 
 ## Engine budget
 
-One inference covers two 93 ms chunks. `src/separator/timing.mjs` picks the buffer from the warm-up measurement: `3 + (pairMs + 20) / 93` chunks, clamped to 4..6, and the worklet receives it through `processorOptions`. The three chunks are the pair itself plus the analysis lookahead; the rest is inference slack. On the reference Mac that is 372 ms; a slow GPU gets 464 or 557 ms instead of missed slices. `src/separator/engine.mjs` reports the chosen value, `src/offscreen/offscreen.js` forwards it once a second, and the popup appends it to `Local AI active`.
+The worklet sends 1024-sample blocks (one STFT hop, 23 ms). `planFor(inferMs)` in `src/separator/timing.mjs` turns the warm-up measurement into a plan: one inference separates a region of `frames` hops (4..8), and the delay is region + 2048 samples of lookahead + 256 fade + `1.2 * inferMs + 12 ms`, rounded up to 128 samples. The smallest region whose length still exceeds the inference time wins. The delay never exceeds `MAX_DELAY_MS` (300 ms); a GPU that cannot fit (warm-up above about 80 ms) gets the stereo filter. On the reference Mac (59 ms) that is 4 frames and about 229 ms. `src/separator/engine.mjs` reports the chosen value, `src/offscreen/offscreen.js` forwards it once a second, and the popup appends it to `Local AI active`.
 
-`src/separator/inference.worker.mjs` gates on the p95 of the last timings. The limit is `MAX_INFERENCE_MS` (about 265 ms), which is the most the longest buffer can absorb; above it the worker reports a fallback and `src/offscreen/offscreen.js` swaps to the stereo filter without stopping the stream, unless the engine policy is AI only, in which case it plays the original mix and reports a warning. A second gate watches throughput: if the mean time per pair, STFT and ISTFT included, exceeds `PAIR_BUDGET_MS` (about 186 ms, the audio one pair covers) over the last 10 to 20 pairs, the queue would keep overflowing and drop chunks that play unseparated, so it reports the same fallback.
+The lookahead is shorter than the full window (`N - HOP`, 4096). `src/separator/stream.mjs` reconstructs each region from the frames whose windows have fully arrived and normalises the overlap-add by the window sum, so the last 2048 samples of a region use fewer frames. Offline on 12 MUSDB tracks (CPU, same model), instrumental SDR / vocal SI-SDR were 11.50 / 8.05 dB for the old 8-frame pair with full lookahead, 10.85 / 7.35 dB for 4 frames with 2048 lookahead, and 11.07 / 7.57 dB for 5 frames; `tests/separator-stream.test.mjs` checks that an identity model rebuilds the source exactly.
+
+`src/separator/inference.worker.mjs` gates on the p95 of the last region times, STFT and ISTFT included. The limit is the plan's `gateMs`: the smaller of the region length and the slack the delay leaves after the region, lookahead and fade. Above it the worker reports a fallback and `src/offscreen/offscreen.js` swaps to the stereo filter without stopping the stream, unless the engine policy is AI only, in which case it plays the original mix and reports a warning. A second gate watches throughput: if the mean time per region, STFT and ISTFT included, exceeds the region's own length over the last 10 to 20 regions, the stream would keep skipping regions that play unseparated, so it reports the same fallback.
 
 The chosen delay is stored as `sepDelay`. The next session starts its monitor at that value so the first sound plays immediately. Once the separator reports its own buffer, `monitor.retune` ramps the dry path to the measured delay before the handover, so a faster session can shrink the delay again instead of inheriting the slowest past run.
 
-Playback never waits for the GPU. A slice with no result plays the dry signal, so a late pair produces a momentary vocal instead of a pause or a growing offset. A pair below -60 dBFS is treated as silence and plays the dry signal too, and the vocal prediction is scaled down to the mixture's magnitude wherever it overshoots, so the model noise floor cannot add hiss during quiet passages either. `src/separator/separator.worklet.mjs` keeps the dry and wet paths on the same sample clock; `tests/separator-playout.test.mjs` checks that a missing pair does not shift later samples.
+Playback never waits for the GPU. A slice with no result plays the dry signal, so a late region produces a momentary vocal instead of a pause or a growing offset. A region below -60 dBFS is treated as silence and plays the dry signal too, and the vocal prediction is scaled down to the mixture's magnitude wherever it overshoots, so the model noise floor cannot add hiss during quiet passages either. `src/separator/separator.worklet.mjs` keeps the dry and wet paths on the same sample clock; `tests/separator-playout.test.mjs` checks that a missing region does not shift later samples.
 
 While the first result is still pending, `src/offscreen/offscreen.js` plays a delayed copy of the tab audio and fades to the separator output when it starts.
 
@@ -81,7 +84,7 @@ CHROME="/path/to/chrome" PLAYWRIGHT="$HOME/.npm/_npx/9b9809298fe40d2c/node_modul
 
 It writes `tools/measurement.json` with inference percentiles, latency, and band levels for an instrumental/vocal two-tone check.
 
-Reference numbers on an Apple Silicon MacBook Air with the fp16 model: p50 59 ms, max 67 ms over 62 pairs, measured delay 372 ms, no missed slices. Two-tone fixture: instrumental keeps 3000 Hz at +22.4 dB while 800 Hz drops to +15.3 dB, vocal keeps 800 Hz at +9.8 dB while 3000 Hz lands at -2.4 dB, 24.7 dB below the instrumental.
+Reference numbers on an Apple Silicon MacBook Air with the fp16 model: p50 59 ms, max 67 ms over 62 pairs, measured delay 372 ms, no missed slices (before the 300 ms cap; not yet re-measured). Two-tone fixture: instrumental keeps 3000 Hz at +22.4 dB while 800 Hz drops to +15.3 dB, vocal keeps 800 Hz at +9.8 dB while 3000 Hz lands at -2.4 dB, 24.7 dB below the instrumental.
 
 Music probe (a real pop mix, voice-band RMS on the vocal stem): instrumental intro -19.6 dB, verse -5.4 dB, chorus -3.4 dB. These are level readings, not an isolation score. Run it with `SONG=/path/to/audio node tools/music.mjs` while the harness server is up.
 

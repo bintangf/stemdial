@@ -1,4 +1,4 @@
-import {delayFor} from './timing.mjs';
+import {MAX_DELAY_MS, planFor} from './timing.mjs';
 import {requireSeparatorSupport} from './capabilities.mjs';
 
 const WORKLET = new URL('./separator.worklet.mjs', import.meta.url);
@@ -16,7 +16,7 @@ export async function createSeparator({ctx, stream, onStatus, onStats, initialGa
   const worker = new Worker(WORKER, {type: 'module'});
   const nodes = [];
   let processor, pitch, closed = false;
-  const counters = {fromWorklet: 0, pairs: 0, skips: 0, played: 0, misses: 0, maxMs: 0};
+  const counters = {fromWorklet: 0, regions: 0, skips: 0, played: 0, misses: 0, maxMs: 0};
 
   const ready = new Promise((resolve, reject) => {
     worker.onmessage = ({data: m}) => {
@@ -25,8 +25,8 @@ export async function createSeparator({ctx, stream, onStatus, onStats, initialGa
         else status(m.state, m.message);
       } else if (m.type === 'ready') resolve(m);
       else if (m.type === 'failed') reject(new Error(m.message));
-      else if (m.type === 'pair') {
-        counters.pairs++;
+      else if (m.type === 'region') {
+        counters.regions++;
         counters.maxMs = Math.max(counters.maxMs, m.ms);
         processor?.port.postMessage(m, [m.vocalL.buffer, m.vocalR.buffer, m.instL.buffer, m.instR.buffer]);
       } else if (m.type === 'skip') { counters.skips++; }
@@ -48,9 +48,16 @@ export async function createSeparator({ctx, stream, onStatus, onStats, initialGa
 
   try {
     const started = await ready;
-    // The measured warm-up sets the buffer. The monitor retunes to this value
-    // before the handover, so a faster session can shrink the delay again.
-    const delay = delayFor(Number(started.pairMs) || 0);
+    // The measured warm-up sets the region size and delay. The monitor retunes
+    // to this value before the handover, so a faster session can shrink it again.
+    const inferMs = Number(started.inferMs) || 0;
+    const plan = planFor(inferMs);
+    if (!plan) {
+      const message = `GPU too slow for a ${MAX_DELAY_MS} ms delay (${Math.round(inferMs)} ms per inference)`;
+      throw Object.assign(new Error(message), {userMessage: message});
+    }
+    const {delay} = plan;
+    worker.postMessage({type: 'plan', frames: plan.frames, gateMs: plan.gateMs});
     status('loading', 'Starting audio');
     await Promise.all([ctx.audioWorklet.addModule(WORKLET), ctx.audioWorklet.addModule(PITCH)]);
     const source = ctx.createMediaStreamSource(stream);
@@ -69,9 +76,9 @@ export async function createSeparator({ctx, stream, onStatus, onStats, initialGa
     source.connect(processor).connect(pitch).connect(output).connect(ctx.destination);
 
     processor.port.onmessage = ({data: m}) => {
-      if (m.type === 'chunk') {
+      if (m.type === 'block') {
         counters.fromWorklet++;
-        worker.postMessage({type: 'chunk', index: m.index, l: m.l, r: m.r}, [m.l.buffer, m.r.buffer]);
+        worker.postMessage({type: 'block', index: m.index, l: m.l, r: m.r}, [m.l.buffer, m.r.buffer]);
       } else if (m.type === 'stats') {
         if (m.played) { counters.played = m.played; counters.misses = m.misses; }
         stats(m);
@@ -82,6 +89,7 @@ export async function createSeparator({ctx, stream, onStatus, onStats, initialGa
     return {
       node: output,
       delay,
+      plan,
       counters,
       setMix(value) { processor?.port.postMessage({type: 'mix', value: Number(value) || 0}); },
       setMode(mode) { processor?.port.postMessage({type: 'mode', value: mode === 'vocal' ? 'vocal' : 'instrumental'}); },

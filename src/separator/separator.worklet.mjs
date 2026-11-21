@@ -1,16 +1,15 @@
-import {CHUNK, MAX_DELAY, MIN_CHUNKS} from './timing.mjs';
-const FADE = 256;
+import {BLOCK, FADE, MAX_DELAY} from './timing.mjs';
 const DELAY_MASK = 32767;
-const SLOTS = 8;
+const SLOTS = 32;
 
 class SeparatorWorklet extends AudioWorkletProcessor {
   constructor(options) {
     super();
-    const chunks = Math.round((options?.processorOptions?.delay || MIN_CHUNKS * CHUNK) / CHUNK);
-    this.delay = Math.min(MAX_DELAY, Math.max(MIN_CHUNKS * CHUNK, chunks * CHUNK));
+    const delay = Math.round(options?.processorOptions?.delay) || MAX_DELAY;
+    this.delay = Math.min(MAX_DELAY, Math.max(BLOCK, delay));
     this.port.postMessage({type: 'stats', hello: true});
-    this.inL = new Float32Array(CHUNK);
-    this.inR = new Float32Array(CHUNK);
+    this.inL = new Float32Array(BLOCK);
+    this.inR = new Float32Array(BLOCK);
     this.inPos = 0;
     this.index = 0;
     this.total = 0;
@@ -18,7 +17,7 @@ class SeparatorWorklet extends AudioWorkletProcessor {
     this.delayR = new Float32Array(DELAY_MASK + 1);
     this.write = 0;
     this.slots = new Array(SLOTS).fill(null);
-    this.readChunk = 0;
+    this.readBlock = 0;
     this.readOff = 0;
     this.started = false;
     this.wet = 0;
@@ -31,20 +30,19 @@ class SeparatorWorklet extends AudioWorkletProcessor {
       if (data.type === 'mix') this.mix = Math.max(0, Math.min(1, data.value));
       else if (data.type === 'mode') this.mode = data.value;
       else if (data.type === 'stop') this.active = false;
-      else if (data.type === 'pair') this.receive(data);
+      else if (data.type === 'region') this.receive(data);
     };
   }
 
   receive({index, vocalL, vocalR, instL, instR, queue, ms, gate, silent}) {
     if (!this.active) return;
-    for (const i of [index, index + 1]) {
-      if (i < this.readChunk) continue;
-      this.slots[i % SLOTS] = {
-        index: i, vocalL, vocalR, instL, instR, silent: !!silent,
-        off: i === index ? 0 : CHUNK,
-      };
+    const blocks = vocalL.length / BLOCK;
+    for (let k = 0; k < blocks; k++) {
+      const i = index + k;
+      if (i < this.readBlock) continue;
+      this.slots[i % SLOTS] = {index: i, vocalL, vocalR, instL, instR, silent: !!silent, off: k * BLOCK};
     }
-    this.port.postMessage({type: "stats", ms, queue, gate});
+    this.port.postMessage({type: 'stats', ms, queue, gate});
   }
 
   soft(x) {
@@ -82,10 +80,10 @@ class SeparatorWorklet extends AudioWorkletProcessor {
           this.port.postMessage({type: 'stats', latency: this.delay / sampleRate * 1000});
         }
       } else {
-        const slot = this.slots[this.readChunk % SLOTS];
-        const ready = slot && slot.index === this.readChunk;
-        const next = this.slots[(this.readChunk + 1) % SLOTS];
-        const fadeOut = this.readOff >= CHUNK - FADE && next?.index !== this.readChunk + 1;
+        const slot = this.slots[this.readBlock % SLOTS];
+        const ready = slot && slot.index === this.readBlock;
+        const next = this.slots[(this.readBlock + 1) % SLOTS];
+        const fadeOut = this.readOff >= BLOCK - FADE && next?.index !== this.readBlock + 1;
         const target = ready && !fadeOut && !slot.silent ? 1 : 0;
         this.wet += Math.max(-1 / FADE, Math.min(1 / FADE, target - this.wet));
         this.mixCur += Math.max(-step, Math.min(step, mixTarget - this.mixCur));
@@ -104,19 +102,19 @@ class SeparatorWorklet extends AudioWorkletProcessor {
         outR[i] = this.soft(ar);
 
         if (this.readOff === 0 && !ready) this.misses++;
-        if (++this.readOff === CHUNK) {
-          this.slots[this.readChunk % SLOTS] = null;
-          this.readChunk++;
+        if (++this.readOff === BLOCK) {
+          this.slots[this.readBlock % SLOTS] = null;
+          this.readBlock++;
           this.readOff = 0;
-          this.port.postMessage({type:'stats', played:this.readChunk, misses:this.misses,
+          this.port.postMessage({type:'stats', played:this.readBlock, misses:this.misses,
             latency:this.delay / sampleRate * 1000, mode:this.mode, wet:this.wet});
         }
       }
 
-      if (++this.inPos === CHUNK) {
+      if (++this.inPos === BLOCK) {
         const lcopy = this.inL.slice(), rcopy = this.inR.slice();
         const index = this.index++;
-        this.port.postMessage({type: 'chunk', index, l: lcopy, r: rcopy},
+        this.port.postMessage({type: 'block', index, l: lcopy, r: rcopy},
           [lcopy.buffer, rcopy.buffer]);
         this.inPos = 0;
       }
