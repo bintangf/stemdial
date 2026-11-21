@@ -10,6 +10,7 @@ Top level is for people, subfolders for the build: `src/` runs, `tests/` checks,
 | --- | --- |
 | `manifest.json` | MV3 entry. Points at `src/background/service-worker.js` and `src/popup/popup.html`. |
 | `src/popup/` | The only control surface. Starts, stops, and adjusts the live mix. |
+| `src/icons/` | Toolbar and store icons (16/32/48/128 PNG). Source SVGs in `tools/icons/`. |
 | `src/background/service-worker.js` | Composition root. Wires the modules below to `chrome` and registers the message listeners. |
 | `src/background/panel.mjs` | Popup protocol: serializes edits, answers status outside the queue, maps ops to the session. |
 | `src/background/session.mjs` | Capture lifecycle: start, switch tab, stop, and restore the badge and status. |
