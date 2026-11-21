@@ -1,6 +1,7 @@
 const $ = selector => document.querySelector(selector);
 const controls = $('#controls'), pitch = $('#pitch'), strength = $('#strength');
-const power = $('#power'), state = $('#state');
+const power = $('#power'), state = $('#state'), warning = $('#warning');
+const settings = $('#settings'), settingsToggle = $('#settingsToggle');
 const levels = {'1':100, '-1':100};
 let active = false, tabId;
 const mode = () => Number($('[name=mix]:checked').value);
@@ -19,7 +20,7 @@ function paint() {
 }
 
 function request(op) {
-  return chrome.runtime.sendMessage({to:'panel',tabId,op,mode:mode(),strength:levels[mode()] ?? 0,pitch:pitch.valueAsNumber}).then(r => {
+  return chrome.runtime.sendMessage({to:'panel',tabId,op,mode:mode(),strength:levels[mode()] ?? 0,pitch:pitch.valueAsNumber,policy:policy()}).then(r => {
     if (!r || r.error) throw Error(r?.error || 'No response from the audio engine.');
     return r;
   });
@@ -29,13 +30,24 @@ let engine = {state:null, message:''};
 function engineText() {
   if (engine.state === 'ai' || engine.state === 'running') return `Local AI active.${engine.latency ? ` Audio delay ${engine.latency} ms.` : ''}`;
   if (engine.state === 'loading') return 'Preparing local AI…';
-  if (engine.state === 'stereo') return `Stereo filter active${engine.message ? ` (${engine.message})` : ''}.`;
+  if (engine.state === 'stereo') return 'Stereo filter active.';
+  if (engine.state === 'dry') return 'Original mix.';
   if (engine.state === 'error') return `${engine.message || 'AI stopped'}.`;
   return engine.message || '';
+}
+function warnText() {
+  if (!active) return '';
+  if (engine.state === 'stereo') return `Stereo fallback active.${engine.message ? ` ${engine.message}` : ' Separation is approximate.'}`;
+  if (engine.state === 'dry') return engine.message || 'AI unavailable. Playing the original mix because the stereo fallback is off.';
+  if (engine.state === 'error') return engine.message || 'AI stopped.';
+  return '';
 }
 function showState() {
   power.textContent = active ? 'Stop and restore audio' : 'Start on this tab';
   state.textContent = active ? (engineText() || 'Pedal on.') : 'Bypassed. This tab uses its original mix.';
+  const warn = warnText();
+  warning.hidden = !warn;
+  warning.textContent = warn;
 }
 let previewPending=false, previewBusy=false;
 async function preview() {
@@ -51,6 +63,23 @@ function commitEdit() {
   request('save').catch(report);
 }
 pitch.oninput=()=>{paint();if(active) preview();};
+settingsToggle.onclick = () => {
+  settings.hidden = !settings.hidden;
+  settingsToggle.setAttribute('aria-expanded', String(!settings.hidden));
+};
+const policy = () => $('[name=policy]:checked')?.value || 'auto';
+for (const input of document.querySelectorAll('[name=policy]')) {
+  input.onchange = () => {
+    settings.hidden = true;
+    settingsToggle.setAttribute('aria-expanded', 'false');
+    settingsToggle.focus();
+    controls.disabled = true;
+    state.textContent = 'Applying engine…';
+    request('policy')
+      .then(r => { active = r.active; engine = r.engine || engine; controls.disabled = false; showState(); })
+      .catch(e => { controls.disabled = false; report(e); });
+  };
+}
 chrome.runtime.onMessage.addListener(m=>{
   if (m.to!=='panel' || m.op!=='engine') return;
   engine=m.engine||engine;
@@ -75,7 +104,9 @@ try {
   const [tab] = await chrome.tabs.query({active:true,lastFocusedWindow:true});
   tabId = tab.id;
   // Paint the saved mix first; the tab-specific answer arrives a moment later.
-  const saved = await chrome.storage.local.get(['mix','reduction1','reduction-1']);
+  const saved = await chrome.storage.local.get(['mix','reduction1','reduction-1','enginePolicy']);
+  const storedPolicy = ['auto','ai','stereo'].includes(saved.enginePolicy) ? saved.enginePolicy : 'auto';
+  $(`[name=policy][value="${storedPolicy}"]`).checked = true;
   const savedMix = saved.mix || {semitones:0,center:1,mode:1};
   const savedMode = savedMix.mode ?? Math.sign(savedMix.center);
   for (const id of [1,-1]) levels[id] = saved[`reduction${id}`] ?? 100;

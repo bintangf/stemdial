@@ -23,8 +23,8 @@ export function createSession({audio, capture, offscreen, storage, status, badge
     if (!existing) await offscreen.open();
     try {
       const streamId = await capture.streamId(tab.id);
-      const {sepDelay} = await storage.get('sepDelay');
-      await audio.request('start', {streamId, tabId: tab.id, mix, sepDelay});
+      const {sepDelay, enginePolicy} = await storage.get(['sepDelay', 'enginePolicy']);
+      await audio.request('start', {streamId, tabId: tab.id, mix, sepDelay, policy: enginePolicy || 'auto'});
     } catch (error) {
       if (!existing) await offscreen.close();
       throw error;
@@ -34,10 +34,17 @@ export function createSession({audio, capture, offscreen, storage, status, badge
     await storage.set({mix});
   }
 
+  async function restart(tab, mix) {
+    await stop(tab.id);
+    try { await activate(tab, mix); }
+    catch (error) { status.set({state: 'error', message: error.message, latency: null}); throw error; }
+  }
+
   return {
     live,
     stop,
     activate,
+    restart,
     setMix: mix => audio.request('set', {mix}),
     async apply(tabId, mix) {
       await audio.request('set', {mix});

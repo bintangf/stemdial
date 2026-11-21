@@ -55,7 +55,7 @@ The Zenodo record for these weights is CC BY 4.0, and the fp32 hash matches the 
 
 One inference covers two 93 ms chunks. `src/separator/timing.mjs` picks the buffer from the warm-up measurement: `3 + (pairMs + 20) / 93` chunks, clamped to 4..6, and the worklet receives it through `processorOptions`. The three chunks are the pair itself plus the analysis lookahead; the rest is inference slack. On the reference Mac that is 372 ms; a slow GPU gets 464 or 557 ms instead of missed slices. `src/separator/engine.mjs` reports the chosen value, `src/offscreen/offscreen.js` forwards it once a second, and the popup appends it to `Local AI active`.
 
-`src/separator/inference.worker.mjs` gates on the p95 of the last timings. The limit is `MAX_INFERENCE_MS` (about 265 ms), which is the most the longest buffer can absorb; above it the worker reports a fallback and `src/offscreen/offscreen.js` swaps to the stereo filter without stopping the stream.
+`src/separator/inference.worker.mjs` gates on the p95 of the last timings. The limit is `MAX_INFERENCE_MS` (about 265 ms), which is the most the longest buffer can absorb; above it the worker reports a fallback and `src/offscreen/offscreen.js` swaps to the stereo filter without stopping the stream, unless the engine policy is AI only, in which case it plays the original mix and reports a warning.
 
 The chosen delay is stored as `sepDelay`. The next session starts its monitor at that value so the first sound plays immediately. Once the separator reports its own buffer, `monitor.retune` ramps the dry path to the measured delay before the handover, so a faster session can shrink the delay again instead of inheriting the slowest past run.
 

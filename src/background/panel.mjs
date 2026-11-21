@@ -1,6 +1,7 @@
 import {editFrom, persistedEdit} from './mix.mjs';
 
 const EDIT_OPS = new Set(['apply', 'save', 'preview']);
+const POLICIES = new Set(['auto', 'ai', 'stereo']);
 
 export function createPanel({session, settings, storage, tabs, status, popupUrl}) {
   let tail = Promise.resolve();
@@ -12,6 +13,16 @@ export function createPanel({session, settings, storage, tabs, status, popupUrl}
     const live = await session.live();
     let current = live?.tabId ?? null;
     let mix = current === tab.id && live.mix ? live.mix : await settings.load();
+
+    if (message.op === 'apply' || message.op === 'policy') {
+      if (!POLICIES.has(message.policy || 'auto')) throw Error('Invalid engine policy');
+      await storage.set({enginePolicy: message.policy || 'auto'});
+    }
+
+    if (message.op === 'policy') {
+      if (current === tab.id) await session.restart(tab, mix);
+      return {active: current === tab.id, mix, engine: status.get()};
+    }
 
     if (EDIT_OPS.has(message.op)) {
       mix = {...mix, ...editFrom(message)};

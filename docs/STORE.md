@@ -48,6 +48,7 @@ StemDial removes or isolates the vocal in audio playing in a Chrome tab, on your
 Play a song, open StemDial, press Start on this tab, and the singer drops away while the video keeps playing. Switch to Vocal focus to keep the voice and reduce the backing, or Full mix to leave the audio untouched and transpose only.
 
 - Instrumental, Vocal focus, and Full mix, with separate reduction levels in 5% steps.
+- A gear menu chooses AI with stereo fallback, AI only, or stereo only; a warning banner shows when the AI is not the active engine.
 - Transpose from -12 to +12 semitones without changing tempo.
 - The audio delay follows the measured GPU speed and is shown in the popup.
 - A slice the GPU cannot finish plays the original mix, and the separator rejoins at the current position.

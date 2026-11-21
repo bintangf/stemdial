@@ -1,6 +1,13 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>StemDial</title><link rel="stylesheet" href="popup.css"><script type="module" src="popup.js"></script></head>
-<body><main><header><h1>StemDial</h1><span>Live vocal remover</span></header><fieldset id="controls" disabled><legend>Tab mix</legend>
+<body><main><header><h1>StemDial</h1><span>Live vocal remover</span><button id="settingsToggle" class="gear" aria-expanded="false" aria-controls="settings" aria-label="Engine settings">⚙</button></header>
+<p id="warning" class="warn" role="alert" hidden></p>
+<section id="settings" hidden aria-label="Engine settings"><fieldset><legend>Engine</legend>
+<label><input type="radio" name="policy" value="auto" checked> AI with stereo fallback</label>
+<label><input type="radio" name="policy" value="ai"> AI only, never fall back</label>
+<label><input type="radio" name="policy" value="stereo"> Stereo filter only</label></fieldset>
+<p class="hint">Applies immediately; the pedal restarts if it is running.</p></section>
+<fieldset id="controls" disabled><legend>Tab mix</legend>
 <div class="modes"><label><input type="radio" name="mix" value="1" checked> Instrumental <small>Reduce vocals</small></label>
 <label><input type="radio" name="mix" value="-1"> Vocal focus <small>Reduce backing</small></label>
 <label><input type="radio" name="mix" value="0"> Full mix <small>Transpose only</small></label></div>

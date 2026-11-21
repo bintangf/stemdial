@@ -5,7 +5,7 @@ import {createWorker} from '../src/background/service-worker.js';
 import {DEFAULT_MIX, normalizeMix, editFrom, persistedEdit, modeOf} from '../src/background/mix.mjs';
 
 function harness({engineState} = {}) {
-  const listeners = [], store = {}, tab = {id: 1}, sessionStore = engineState ? {engineState} : {};
+  const listeners = [], store = {}, starts = [], tab = {id: 1}, sessionStore = engineState ? {engineState} : {};
   let doc = false, live = null;
   const chrome = {
     tabs: {query: async () => [tab]},
@@ -21,7 +21,7 @@ function harness({engineState} = {}) {
       onMessage: {addListener: listener => listeners.push(listener)},
       getContexts: async () => doc ? [{}] : [],
       sendMessage: async message => {
-        if (message.op === 'start') live = {tabId: message.tabId, mix: message.mix};
+        if (message.op === 'start') { starts.push(message); live = {tabId: message.tabId, mix: message.mix}; }
         if (message.op === 'set') live = {...live, mix: message.mix};
         if (message.op === 'stop') live = null;
         return {ok: true, ...live};
@@ -29,12 +29,12 @@ function harness({engineState} = {}) {
     },
   };
   const worker = createWorker(chrome);
-  const panel = (op, mode = 1, strength = 100, pitch = 0, tabId = tab.id) => new Promise(resolve => listeners[0](
-    {to: 'panel', tabId, op, mode, strength, pitch},
+  const panel = (op, mode = 1, strength = 100, pitch = 0, tabId = tab.id, policy) => new Promise(resolve => listeners[0](
+    {to: 'panel', tabId, op, mode, strength, pitch, policy},
     {url: 'extension/src/popup/popup.html'},
     resolve,
   ));
-  return {panel, tab, store, worker, listeners};
+  return {panel, tab, store, starts, worker, listeners};
 }
 
 test('mix model normalizes old saved settings and keeps an explicit full mix', () => {
@@ -68,6 +68,25 @@ test('apply starts capture and persists the mix', async () => {
   assert.equal(h.store.mix.mode, 1);
   assert.equal(h.store.mix.center, 1);
   assert.equal((await h.panel('status')).active, true);
+});
+
+test('the engine policy is saved and passed to the offscreen start', async () => {
+  const h = harness();
+  await h.panel('apply', 1, 100, 0, h.tab.id, 'ai');
+  assert.equal(h.store.enginePolicy, 'ai');
+  assert.equal(h.starts.at(-1).policy, 'ai');
+  assert.match((await h.panel('apply', 1, 100, 0, h.tab.id, 'bogus')).error, /Invalid engine policy/);
+});
+
+test('changing the engine while live restarts the session', async () => {
+  const h = harness();
+  await h.panel('apply');
+  const before = h.starts.length;
+  const reply = await h.panel('policy', 1, 100, 0, h.tab.id, 'ai');
+  assert.equal(h.store.enginePolicy, 'ai');
+  assert.equal(h.starts.length, before + 1);
+  assert.equal(h.starts.at(-1).policy, 'ai');
+  assert.equal(reply.active, true);
 });
 
 test('denied handoff preserves running capture', async () => {

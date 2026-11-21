@@ -2,7 +2,13 @@ import {createEngine} from '../fallback/engine.mjs';
 import {MAX_DELAY} from '../separator/timing.mjs';
 import {createMonitor} from './monitor.mjs';
 
-let stream, ctx, engine, sep, liveMix, tabId = null;
+let stream, ctx, engine, sep, liveMix, tabId = null, monitorNode = null, enginePolicy = 'auto';
+
+function createDry(ctx, stream) {
+  const source = ctx.createMediaStreamSource(stream);
+  source.connect(ctx.destination);
+  return {set() {}, disconnect() { source.disconnect(); }};
+}
 
 const report = (state, message) => chrome.runtime.sendMessage({to: 'worker', op: 'engine-status', state, message, tabId}).catch(() => {});
 const debug = {kind: null, ctxState: null, chunks: 0, ms: 0, latency: 0, gate: null, monitor: 0};
@@ -33,6 +39,17 @@ function apply(mix) {
 // The fallback is built first: if it fails, the separator keeps playing.
 async function degrade(message) {
   if (!ctx || !stream || !sep) return;
+  monitorNode?.close();
+  monitorNode = null;
+  if (enginePolicy === 'ai') {
+    const dry = createDry(ctx, stream);
+    const old = sep;
+    sep = null;
+    engine = dry;
+    old.disconnect();
+    report('dry', `AI stopped. ${message} Stereo fallback is off; playing the original mix.`);
+    return;
+  }
   let fallback;
   try {
     fallback = await createEngine(ctx, stream);
@@ -54,8 +71,10 @@ async function stop() {
   stream?.getTracks().forEach(track => track.stop());
   sep?.disconnect();
   engine?.disconnect();
+  monitorNode?.close();
   if (ctx && ctx.state !== 'closed') await ctx.close();
   stream = ctx = engine = sep = liveMix = null;
+  monitorNode = null;
 }
 
 function forwardLatency(latency) {
@@ -101,8 +120,9 @@ async function startSeparator({ctx, stream, monitor}) {
   return separator;
 }
 
-async function open({streamId, sepDelay, mix}) {
-  let nextStream, nextCtx;
+async function open({streamId, sepDelay, mix, policy}) {
+  const selectedPolicy = policy || 'auto';
+  let nextStream, nextCtx, monitor = null;
   try {
     nextStream = await navigator.mediaDevices.getUserMedia({audio: {mandatory: {chromeMediaSource: 'tab', chromeMediaSourceId: streamId}}, video: false});
     nextCtx = new AudioContext({sampleRate: 44100, latencyHint: 'interactive'});
@@ -112,27 +132,41 @@ async function open({streamId, sepDelay, mix}) {
     // handover plays the same sample as the separator. The offscreen document
     // has no storage API; the worker passes the value in.
     const stored = Number(sepDelay) || 0;
-    const monitor = createMonitor(nextCtx, nextStream, stored || MAX_DELAY, MAX_DELAY);
+    monitor = createMonitor(nextCtx, nextStream, stored || MAX_DELAY, MAX_DELAY);
     debug.monitor = monitor.latencyMs;
     debug.an = nextCtx.createAnalyser();
     nextCtx.createMediaStreamSource(nextStream).connect(debug.an);
 
     let nextSep = null, nextEngine = null;
-    try {
-      nextSep = await startSeparator({ctx: nextCtx, stream: nextStream, monitor});
-    } catch (error) {
+    if (selectedPolicy === 'stereo') {
       nextEngine = await createEngine(nextCtx, nextStream);
       monitor.close();
-      report('stereo', 'AI unavailable on this device');
-      console.warn('Separator unavailable:', error);
+      monitor = null;
+      report('stereo', 'Stereo filter selected');
+    } else {
+      try {
+        nextSep = await startSeparator({ctx: nextCtx, stream: nextStream, monitor});
+      } catch (error) {
+        monitor.close();
+        monitor = null;
+        if (selectedPolicy === 'ai') {
+          nextEngine = createDry(nextCtx, nextStream);
+          report('dry', 'AI unavailable. Stereo fallback is off, so the original mix is playing.');
+        } else {
+          nextEngine = await createEngine(nextCtx, nextStream);
+          report('stereo', 'AI unavailable on this device');
+        }
+        console.warn('Separator unavailable:', error);
+      }
     }
     if (nextSep && nextSep.delay !== stored) {
       chrome.runtime.sendMessage({to: 'worker', op: 'sep-delay', delay: nextSep.delay}).catch(() => {});
     }
     if (nextSep) report('ai');
     else nextEngine.set(mix);
-    return {stream: nextStream, ctx: nextCtx, engine: nextEngine, sep: nextSep};
+    return {stream: nextStream, ctx: nextCtx, engine: nextEngine, sep: nextSep, monitor, policy: selectedPolicy};
   } catch (error) {
+    monitor?.close();
     nextStream?.getTracks().forEach(track => track.stop());
     await nextCtx?.close();
     throw error;
@@ -145,11 +179,14 @@ async function start(message) {
     next = await open(message);
     await next.ctx.resume();
     if (next.stream.getAudioTracks()[0].readyState === 'ended') throw Error('Tab capture ended.');
+    // stop() closes the previous monitor and session; only then adopt the new one.
     await stop();
+    enginePolicy = next.policy;
     stream = next.stream;
     ctx = next.ctx;
     engine = next.engine;
     sep = next.sep;
+    monitorNode = next.monitor;
     stream.getAudioTracks()[0].onended = () => chrome.runtime.sendMessage({to: 'worker', op: 'ended', tabId: message.tabId});
     tabId = message.tabId;
     liveMix = message.mix;
@@ -159,6 +196,7 @@ async function start(message) {
     next?.stream.getTracks().forEach(track => track.stop());
     next?.sep?.disconnect();
     next?.engine?.disconnect();
+    next?.monitor?.close();
     await next?.ctx?.close();
     throw error;
   }
