@@ -2,7 +2,6 @@ export const SAMPLE_RATE = 44100;
 export const N = 5120;
 export const HOP = 1024;
 export const BINS = 2048;
-export const OVERLAP = N / HOP;
 
 export const WINDOW = Float64Array.from({length: N}, (_, i) => 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N));
 
