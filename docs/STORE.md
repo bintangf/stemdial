@@ -45,7 +45,7 @@ Requires Chrome 116 or newer. With WebGPU the separator runs; without it the ext
 ## Before submitting
 
 - [x] Icons: 16/32/48/128 PNG in `src/icons/`, declared in `manifest.json`; source SVGs in `tools/icons/`.
-- [ ] Capture at least one screenshot (1280x800) of the popup on a playing tab.
+- [x] Screenshot: `docs/store/screenshot-1.png`, 1280x800, popup on a playing tab.
 - [ ] Confirm the privacy policy URL is public.
 - [ ] Confirm `docs/ASSETS.md` and `src/separator/ort/LICENSE` are in the zip.
 - [ ] Test on a clean Chrome profile with no other extensions.
