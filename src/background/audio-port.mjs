@@ -10,6 +10,5 @@ export function createAudioPort(chrome) {
   return {
     hasDocument,
     request,
-    tabId: async (op, data) => (await request(op, data)).tabId,
   };
 }
