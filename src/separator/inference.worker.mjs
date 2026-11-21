@@ -9,8 +9,6 @@ const PAIR = CHUNK * 2;
 const FRAMES = PAIR / HOP;
 const LOOKAHEAD = N - HOP;
 const QUEUE_MAX = 4; // chunks; one inference consumes two
-const DEBUG = false; // log reconstruction levels
-const IDENTITY = false;
 
 const post = (msg, transfer) => self.postMessage(msg, transfer || []);
 const status = (state, message) => post({type: 'status', state, message});
@@ -86,18 +84,6 @@ function rebuildStem(out, accL, accR, wsum) {
   }
 }
 
-// Identity path, kept for reconstruction debugging with IDENTITY.
-function rebuildInput(accL, accR, wsum) {
-  for (let f = 0; f < FRAMES; f++) {
-    const src = f * 4 * BINS;
-    const outL = frameBuf.slice(src, src + BINS);
-    const outIL = frameBuf.slice(src + BINS, src + 2 * BINS);
-    const outR = frameBuf.slice(src + 2 * BINS, src + 3 * BINS);
-    const outIR = frameBuf.slice(src + 3 * BINS, src + 4 * BINS);
-    istftFrame(fft, outL, outIL, outR, outIR, 0, accL, accR, wsum, f * HOP);
-  }
-}
-
 async function processPair(a, b) {
   const started = performance.now();
   const next = queue[0]; // lookahead chunk
@@ -133,8 +119,7 @@ async function processPair(a, b) {
   const ms = performance.now() - t0;
   gate.push(ms);
 
-  if (!silent && DEBUG && IDENTITY) rebuildInput(accL, accR, wsum);
-  else if (!silent) rebuildStem(out, accL, accR, wsum);
+  if (!silent) rebuildStem(out, accL, accR, wsum);
 
   const vocalL = new Float32Array(PAIR), vocalR = new Float32Array(PAIR);
   const instL = new Float32Array(PAIR), instR = new Float32Array(PAIR);
@@ -145,11 +130,6 @@ async function processPair(a, b) {
     // This checkpoint predicts the vocal stem about 7 dB under the source level.
     const vg = 2.3;
     vocalL[i] = vl * vg; vocalR[i] = vr * vg;
-  }
-  if (DEBUG && !silent) {
-    let ev = 0, es = 0;
-    for (let i = 0; i < PAIR; i++) { ev += vocalL[i] * vocalL[i]; es += origL[i] * origL[i]; }
-    console.log('stem rms', Math.sqrt(ev / PAIR).toFixed(4), 'src rms', Math.sqrt(es / PAIR).toFixed(4));
   }
   carryL = accL.slice(PAIR); carryR = accR.slice(PAIR); carryW = wsum.slice(PAIR);
   if (silent) {
