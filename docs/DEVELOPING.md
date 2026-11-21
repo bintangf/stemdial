@@ -32,7 +32,10 @@ Top level is for people, subfolders for the build: `src/` runs, `tests/` checks,
 | `src/separator/timing.mjs` | Chunk size, buffer bounds, and the inference gate. |
 | `src/separator/model/vocals.onnx` | Bundled fp16 model. |
 | `src/separator/ort/` | Pinned ONNX Runtime Web build. |
-| `src/fallback/` | Stereo-filter engine, worklet, pitch, and vocal focus, used when WebGPU is unavailable or too slow. |
+| `src/fallback/` | Stereo-fallback engine, FFT centre worklet, radix-2 FFT, and pitch, used when WebGPU is unavailable or too slow. |
+| `src/fallback/center.worklet.mjs` | Per-bin mid/side centre extractor for Instrumental and Vocal focus. |
+| `src/fallback/fft.mjs` | Radix-2 FFT used by the fallback centre. |
+| `src/fallback/pitch.worklet.mjs` | Fallback pitch processor. |
 | `src/fallback/pitch.mjs` | Two-tap pitch shifter, used by both engines. |
 | `tests/` | Signal-path and worker-protocol tests. |
 | `tools/` | GPU harness, its Playwright drivers, and the model rebuild script. |

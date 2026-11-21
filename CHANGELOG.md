@@ -5,6 +5,7 @@
 - A pair under -60 dBFS plays the dry signal, so the separator no longer adds hiss when the tab is silent.
 - The vocal prediction is capped by the mixture's magnitude in each bin, so the model's noise floor cannot add hiss during quiet passages that are not fully silent.
 - The warm-up ignores the first two runs, and the monitor retunes to the delay this session measured, so a slow past run no longer pins every later session at a longer delay.
+- The stereo fallback estimates the centre per frequency bin with an FFT, so Vocal focus rejects panned and wide backing much more strongly. Its compressor is gone, and it uses the same soft limiter as the AI path.
 
 ## 0.6.2 (2026-11-21)
 

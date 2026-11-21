@@ -26,7 +26,7 @@ The AI adds a delay between the video and the sound, because the separator needs
 
 When the GPU misses a slice, that slice plays as the original mix and the separator rejoins at the right place in the song. Nothing pauses or drifts out of sync.
 
-If the GPU stays too slow, StemDial swaps to the stereo filter without stopping playback. The fallback cancels centre-panned sound and leaves the sides, so a voice hard-panned to one side survives it.
+If the GPU stays too slow, StemDial swaps to the stereo filter without stopping playback. The fallback cancels centre-panned sound and leaves the sides, so a voice hard-panned to one side survives it. Vocal focus estimates the centre per frequency bin with an FFT, so most panned and wide backing cancels instead of leaking through; backing that is genuinely centred still cannot be separated without the model.
 
 ## Install
 
