@@ -85,7 +85,7 @@ Reference numbers on an Apple Silicon MacBook Air with the fp16 model: p50 59 ms
 
 Music probe (a real pop mix, voice-band RMS on the vocal stem): instrumental intro -19.6 dB, verse -5.4 dB, chorus -3.4 dB. These are level readings, not an isolation score. Run it with `SONG=/path/to/audio node tools/music.mjs` while the harness server is up.
 
-Manual check: play a stereo track, start the pedal, switch all three modes, change pitch, close and reopen the popup, then stop and confirm the original audio returns. One tab is processed at a time.
+Manual check: play a stereo track, start StemDial, switch all three modes, change pitch, close and reopen the popup, then stop and confirm the original audio returns. One tab is processed at a time.
 
 ## Package
 
