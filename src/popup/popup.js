@@ -25,7 +25,7 @@ function request(op) {
     return r;
   });
 }
-const report = e => { state.textContent = `${e.message} Reopen the pedal on a music tab to retry.`; };
+const report = e => { state.textContent = `${e.message} Reopen StemDial on a music tab to retry.`; };
 let engine = {state:null, message:''};
 function engineText() {
   if (engine.state === 'ai' || engine.state === 'running') return `Local AI active.${engine.latency ? ` Audio delay ${engine.latency} ms.` : ''}`;
@@ -44,7 +44,7 @@ function warnText() {
 }
 function showState() {
   power.textContent = active ? 'Stop and restore audio' : 'Start on this tab';
-  state.textContent = active ? (engineText() || 'Pedal on.') : 'Bypassed. This tab uses its original mix.';
+  state.textContent = active ? (engineText() || 'StemDial active.') : 'Bypassed. This tab uses its original mix.';
   const warn = warnText();
   warning.hidden = !warn;
   warning.textContent = warn;
@@ -95,7 +95,7 @@ for (const button of controls.querySelectorAll('[data-step]')) button.onclick = 
 power.onclick = async () => {
   controls.disabled = true;
   previewPending=false;
-  state.textContent = active ? 'Restoring tab audio…' : 'Starting the pedal…';
+  state.textContent = active ? 'Restoring tab audio…' : 'Starting StemDial…';
   try { const r = await request(active ? 'stop' : 'apply'); active = r.active; engine = r.engine || engine; showState(); }
   catch(e) { report(e); }
   finally { controls.disabled = false; power.focus(); }

@@ -37,34 +37,37 @@ function apply(mix) {
 
 // Swap the AI separator for the stereo filter without leaving a silent gap.
 // The fallback is built first: if it fails, the separator keeps playing.
-async function degrade(message) {
-  if (!ctx || !stream || !sep) return;
+// Only the live session's separator may degrade; a failure reported before
+// start() makes it live is retried there.
+async function degrade(ai) {
+  if (!sep || sep !== ai.separator) return;
   monitorNode?.close();
   monitorNode = null;
   if (enginePolicy === 'ai') {
-    const dry = createDry(ctx, stream);
-    const old = sep;
     sep = null;
-    engine = dry;
-    old.disconnect();
-    report('dry', `AI stopped. ${message} Stereo fallback is off; playing the original mix.`);
+    engine = createDry(ctx, stream);
+    ai.separator.disconnect();
+    report('dry', `AI stopped. ${ai.failure} Stereo fallback is off; playing the original mix.`);
     return;
   }
   let fallback;
   try {
     fallback = await createEngine(ctx, stream);
   } catch (error) {
-    report('error', `Stereo filter failed: ${error.message}`);
+    if (sep === ai.separator) report('error', `Stereo filter failed: ${error.message}`);
+    return;
+  }
+  if (sep !== ai.separator) {
+    fallback.disconnect();
     return;
   }
   if (liveMix) fallback.set(liveMix);
-  const old = sep;
   sep = null;
   engine = fallback;
-  old.disconnect();
-  report('stereo', message);
+  ai.separator.disconnect();
+  report('stereo', ai.failure);
 }
-const degradeLater = message => degrade(message).catch(error => report('error', error.message));
+const degradeLater = ai => degrade(ai).catch(error => report('error', error.message));
 
 async function stop() {
   tabId = null;
@@ -93,31 +96,32 @@ function recordStats(stats) {
 
 async function startSeparator({ctx, stream, monitor}) {
   const {createSeparator} = await import('../separator/engine.mjs');
-  let monitoring = true;
-  let separator = null;
-  separator = await createSeparator({
+  const ai = {separator: null, monitoring: true, failure: null};
+  ai.separator = await createSeparator({
     ctx,
     stream,
     initialGain: 0,
     onStatus(state, message) {
       debug.kind = 'ai';
       debug.ctxState = ctx.state;
-      if (state === 'fallback' || state === 'error') degradeLater(message);
-      else report(state, message);
+      if (state === 'fallback' || state === 'error') {
+        ai.failure ??= message;
+        degradeLater(ai);
+      } else report(state, message);
     },
     onStats(stats) {
       forwardLatency(stats.latency);
-      if (monitoring && stats.played && separator) {
-        monitoring = false;
-        monitor.fadeTo(separator.node);
+      if (ai.monitoring && stats.played && ai.separator) {
+        ai.monitoring = false;
+        monitor.fadeTo(ai.separator.node);
       }
       recordStats(stats);
     },
   });
   // Move the monitor to the buffer this session measured, before the handover.
-  monitor.retune(separator.delay);
+  monitor.retune(ai.separator.delay);
   debug.monitor = monitor.latencyMs;
-  return separator;
+  return ai;
 }
 
 async function open({streamId, sepDelay, mix, policy}) {
@@ -137,7 +141,7 @@ async function open({streamId, sepDelay, mix, policy}) {
     debug.an = nextCtx.createAnalyser();
     nextCtx.createMediaStreamSource(nextStream).connect(debug.an);
 
-    let nextSep = null, nextEngine = null;
+    let ai = null, nextSep = null, nextEngine = null;
     if (selectedPolicy === 'stereo') {
       nextEngine = await createEngine(nextCtx, nextStream);
       monitor.close();
@@ -145,7 +149,8 @@ async function open({streamId, sepDelay, mix, policy}) {
       report('stereo', 'Stereo filter selected');
     } else {
       try {
-        nextSep = await startSeparator({ctx: nextCtx, stream: nextStream, monitor});
+        ai = await startSeparator({ctx: nextCtx, stream: nextStream, monitor});
+        nextSep = ai.separator;
       } catch (error) {
         monitor.close();
         monitor = null;
@@ -164,7 +169,7 @@ async function open({streamId, sepDelay, mix, policy}) {
     }
     if (nextSep) report('ai');
     else nextEngine.set(mix);
-    return {stream: nextStream, ctx: nextCtx, engine: nextEngine, sep: nextSep, monitor, policy: selectedPolicy};
+    return {stream: nextStream, ctx: nextCtx, engine: nextEngine, sep: nextSep, ai, monitor, policy: selectedPolicy};
   } catch (error) {
     monitor?.close();
     nextStream?.getTracks().forEach(track => track.stop());
@@ -192,6 +197,7 @@ async function start(message) {
     liveMix = message.mix;
     if (sep) apply(message.mix);
     else engine.set(message.mix);
+    if (next.ai?.failure) degradeLater(next.ai);
   } catch (error) {
     next?.stream.getTracks().forEach(track => track.stop());
     next?.sep?.disconnect();
