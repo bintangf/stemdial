@@ -108,7 +108,6 @@ async function run() {
           if (s.gate) log('fallback reported (slow GPU)');
         }
         if (s.latency != null && s.latency > 0) { report.latency.push(s.latency); report.lastMode = s.mode; report.lastWet = s.wet; lastLatencyAt = performance.now(); }
-        if (s.outMean != null) { report.outMean = s.outMean; report.peak = s.peak; }
       },
     });
     report.initMs = performance.now() - t0;

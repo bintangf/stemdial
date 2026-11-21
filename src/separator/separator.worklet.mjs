@@ -35,7 +35,7 @@ class SeparatorWorklet extends AudioWorkletProcessor {
     };
   }
 
-  receive({index, vocalL, vocalR, instL, instR, queue, ms, gate, silent, outMean, peak}) {
+  receive({index, vocalL, vocalR, instL, instR, queue, ms, gate, silent}) {
     if (!this.active) return;
     for (const i of [index, index + 1]) {
       if (i < this.readChunk) continue;
@@ -44,7 +44,7 @@ class SeparatorWorklet extends AudioWorkletProcessor {
         off: i === index ? 0 : CHUNK,
       };
     }
-    this.port.postMessage({type: "stats", ms, queue, gate, outMean, peak});
+    this.port.postMessage({type: "stats", ms, queue, gate});
   }
 
   soft(x) {
