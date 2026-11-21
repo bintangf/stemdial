@@ -30,6 +30,38 @@ None. All JavaScript, the ONNX model, and the ONNX Runtime WASM binaries ship in
 
 https://bintangf.github.io/stemdial/privacy.html
 
+The repository copy is also public: https://github.com/bintangf/stemdial/blob/develop/PRIVACY.md
+
+## Store listing
+
+Short description (132 characters max):
+
+```
+Remove or isolate the vocal in any Chrome tab. On-device AI, no upload, no account.
+```
+
+Detailed description:
+
+```
+StemDial removes or isolates the vocal in audio playing in a Chrome tab, on your device.
+
+Play a song, open StemDial, press Start on this tab, and the singer drops away while the video keeps playing. Switch to Vocal focus to keep the voice and reduce the backing, or Full mix to leave the audio untouched and transpose only.
+
+- Instrumental, Vocal focus, and Full mix, with separate reduction levels in 5% steps.
+- Transpose from -12 to +12 semitones without changing tempo.
+- The audio delay follows the measured GPU speed and is shown in the popup.
+- A slice the GPU cannot finish plays the original mix, and the separator rejoins at the current position.
+- Falls back to a stereo filter when WebGPU is missing or too slow, without stopping playback.
+
+The separation model is bundled and runs on your GPU. No account, no upload, no subscription. Audio stays in the browser.
+
+Requires Chrome 116 or newer on desktop with WebGPU. Without WebGPU the stereo filter is used.
+```
+
+- Category: Tools
+- Language: English (United States)
+- Package: `stemdial-0.6.2.zip` from https://github.com/bintangf/stemdial/releases/tag/v0.6.2
+
 ## Description attribution
 
 The vocal separator is the KUIELab MDX-Net model, used under CC BY 4.0. Provenance, hashes, and licence: `docs/ASSETS.md`.
@@ -47,6 +79,13 @@ Requires Chrome 116 or newer. With WebGPU the separator runs; without it the ext
 - [ ] Upload `docs/store/social-preview.png` (1280x640) in repository Settings, General, Social preview. GitHub shows the owner avatar on the repo page itself; a repo cannot carry its own avatar unless it belongs to an organization.
 - [x] Icons: 16/32/48/128 PNG in `src/icons/`, declared in `manifest.json`; source SVGs in `tools/icons/`.
 - [x] Screenshot: `docs/store/screenshot-1.png`, 1280x800, popup on a playing tab.
-- [ ] Confirm the privacy policy URL is public.
-- [ ] Confirm `docs/ASSETS.md` and `src/separator/ort/LICENSE` are in the zip.
+- [x] Privacy policy URL is public: HTTP 200 on Pages and on GitHub.
+- [x] `docs/ASSETS.md`, `src/separator/ort/LICENSE`, `PRIVACY.md`, and the icons are in `stemdial-0.6.2.zip`.
 - [ ] Test on a clean Chrome profile with no other extensions.
+- [ ] In the developer dashboard, complete the privacy practices form, the single purpose field, both permission justifications, the remote code declaration, the data usage answers, and the trader status.
+
+## Still manual
+
+- The social preview upload and the clean-profile test need a browser session.
+- The Chrome Web Store item must be created by hand before the API can upload. The first upload cannot be automated.
+- Developer account registration and the one-time fee are outside this repository.
