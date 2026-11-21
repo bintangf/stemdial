@@ -28,8 +28,17 @@ test('missing WebGPU and a missing adapter both report a fallback', async () => 
   });
 });
 
-test('an adapter passes', async () => {
-  await withGpu({requestAdapter: async () => ({})}, async () => {
+test('an adapter without shader-f16 reports a fallback before the worker starts', async () => {
+  await withGpu({requestAdapter: async () => ({features: new Set()})}, async () => {
+    const seen = [];
+    const status = (state, message) => seen.push([state, message]);
+    await assert.rejects(requireSeparatorSupport({sampleRate: 44100}, status), /shader-f16/);
+    assert.deepEqual(seen, [['fallback', 'WebGPU adapter lacks shader-f16 support']]);
+  });
+});
+
+test('an adapter with shader-f16 passes', async () => {
+  await withGpu({requestAdapter: async () => ({features: new Set(['shader-f16'])})}, async () => {
     await requireSeparatorSupport({sampleRate: 44100}, () => assert.fail('should not report'));
   });
 });
