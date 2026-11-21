@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.2 (2026-11-21)
+
+- Extension icons at 16, 32, 48, and 128 px.
+- Privacy policy at `PRIVACY.md` and on the project site.
+- Chrome Web Store submission guide with permission justifications.
+- GitHub Pages site with install steps and the privacy policy.
+
 ## 0.6.1 (2026-11-19)
 
 - Vocal separation runs on the GPU from a bundled model. Instrumental removes the singer; Vocal focus keeps the voice and reduces the backing.
