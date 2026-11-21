@@ -20,7 +20,7 @@ Instrumental and Vocal focus keep their own reduction level. Use **− / +** for
 
 ## Requirements
 
-A Chromium-based desktop browser, version 116 or newer, with hardware acceleration and a working WebGPU adapter. Development and testing happen on Chrome. Check `chrome://gpu` if the AI never starts; StemDial falls back to a stereo filter and says so in the popup.
+A Chromium-based desktop browser, version 116 or newer. Local AI also needs hardware acceleration and a WebGPU adapter with `shader-f16` support for the bundled model. Development and testing happen on Chrome. Check `chrome://gpu` if the AI never starts; by default StemDial falls back to a stereo filter and says so in the popup.
 
 The AI adds a delay between the video and the sound, because the separator needs a slice of future audio before it can decide what is a voice. The delay is measured on your machine and never exceeds 300 ms: about 225 ms on this MacBook Air, more on a slower GPU. A GPU too slow to stay under 300 ms uses the stereo filter instead. The popup shows the value in use.
 

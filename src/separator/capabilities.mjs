@@ -12,4 +12,9 @@ export async function requireSeparatorSupport(ctx, status) {
     status('fallback', 'No WebGPU adapter');
     throw new Error('No WebGPU adapter');
   }
+  if (!adapter.features.has('shader-f16')) {
+    const message = 'WebGPU adapter lacks shader-f16 support';
+    status('fallback', message);
+    throw new Error(message);
+  }
 }
