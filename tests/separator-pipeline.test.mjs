@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {BINS, mixGain} from '../src/separator/dsp.mjs';
 import {createHistory} from '../src/separator/history.mjs';
 import {createGate, mean, percentile} from '../src/separator/gate.mjs';
-import {CHUNK, MAX_INFERENCE_MS, PAIR_BUDGET_MS} from '../src/separator/timing.mjs';
+import {BLOCK, MIN_FRAMES, RATE} from '../src/separator/timing.mjs';
+
+const REGION_MS = MIN_FRAMES * BLOCK / RATE * 1000;
 
 test('the vocal prediction is held to the mixture magnitude', () => {
   assert.equal(mixGain(0.3, 0.1, 1, 1), 1);
@@ -57,39 +59,15 @@ test('the gate keeps a fast stream open', () => {
   assert.equal(gate.fired, false);
 });
 
-// Mirrors the worker queue: QUEUE_MAX 4, a pair needs one chunk of lookahead.
-function separatedShare(pairMs, seconds = 60) {
-  const chunkMs = CHUNK / 44100 * 1000;
-  let queue = [], busyUntil = 0, pairs = 0, index = 0;
-  for (let t = chunkMs; t < seconds * 1000; t += chunkMs) {
-    while (busyUntil <= t && queue.length >= 3) {
-      const a = queue.shift(), b = queue.shift();
-      if (a + 1 !== b) { queue.unshift(b); continue; }
-      pairs++;
-      busyUntil = Math.max(busyUntil, t) + pairMs;
-    }
-    queue.push(index++);
-    while (queue.length > 4) queue.shift();
-  }
-  return pairs * 2 / index;
-}
-
-test('pairs slower than their audio drop chunks while still under the latency gate', () => {
-  assert.ok(separatedShare(PAIR_BUDGET_MS * 0.95) > 0.99);
-  const pairMs = (PAIR_BUDGET_MS + MAX_INFERENCE_MS) / 2;
-  assert.ok(pairMs < MAX_INFERENCE_MS);
-  assert.ok(separatedShare(pairMs) < 0.8, 'this band needs the throughput gate');
-});
-
 test('the throughput gate fires on the mean, not on one slow pair', () => {
   const fired = [];
-  const gate = createGate({limit: PAIR_BUDGET_MS, minimum: 10, stat: mean, onSlow: value => fired.push(value)});
-  for (let i = 0; i < 9; i++) gate.push(220);
+  const gate = createGate({limit: REGION_MS, minimum: 10, stat: mean, onSlow: value => fired.push(value)});
+  for (let i = 0; i < 9; i++) gate.push(120);
   assert.equal(gate.fired, false, 'needs ten samples');
-  gate.push(220);
-  assert.deepEqual(fired, [220]);
+  gate.push(120);
+  assert.deepEqual(fired, [120]);
 
-  const steady = createGate({limit: PAIR_BUDGET_MS, minimum: 10, stat: mean, onSlow: () => assert.fail('gate fired')});
-  for (let i = 0; i < 20; i++) steady.push(i === 5 ? 400 : 150);
+  const steady = createGate({limit: REGION_MS, minimum: 10, stat: mean, onSlow: () => assert.fail('gate fired')});
+  for (let i = 0; i < 20; i++) steady.push(i === 5 ? 400 : 50);
   assert.equal(steady.fired, false);
 });

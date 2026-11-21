@@ -1,20 +1,32 @@
-export const CHUNK = 4096;
 export const RATE = 44100;
-// A pair costs the pair itself plus one chunk of analysis lookahead; the read
-// head sits three chunks behind the writer and each further chunk adds slack.
-export const MIN_CHUNKS = 4;
-export const MAX_CHUNKS = 6;
-export const MAX_DELAY = MAX_CHUNKS * CHUNK;
-// One inference covers two chunks, so the worker must finish a pair, DSP
-// included, within two chunks of audio on average or its queue overflows.
-export const PAIR_BUDGET_MS = 2 * CHUNK / RATE * 1000;
-// Inference is the only part that may overrun the longest buffer.
-export const MAX_INFERENCE_MS = (MAX_CHUNKS - 3) * CHUNK / RATE * 1000 * 0.95;
+// The worklet hands the worker one STFT hop at a time.
+export const BLOCK = 1024;
+// Audio past a region that must arrive before it is separated. Full overlap-add
+// needs N - HOP (4096); on MUSDB, 2048 costs about 0.1 dB instrumental SDR.
+export const LOOKAHEAD = 2048;
+// The worklet fades to the dry signal this many samples before a missing block.
+export const FADE = 256;
+export const MAX_DELAY_MS = 300;
+export const MAX_DELAY = Math.floor(MAX_DELAY_MS * RATE / 1000);
+export const MIN_FRAMES = 4;
+export const MAX_FRAMES = 8;
+const QUANTUM = 128;
 
-export function delayChunks(pairMs) {
-  const perChunk = CHUNK / RATE * 1000;
-  const need = 3 + (pairMs + 20) / perChunk;
-  return Math.min(MAX_CHUNKS, Math.max(MIN_CHUNKS, Math.ceil(need)));
+const toMs = samples => samples / RATE * 1000;
+
+// One inference separates `frames` hops. The region must outlast the inference,
+// and region + lookahead + inference must fit the delay cap. Returns null when
+// the GPU cannot meet the cap.
+export function planFor(inferMs) {
+  const slackMs = inferMs * 1.2 + 12;
+  for (let frames = MIN_FRAMES; frames <= MAX_FRAMES; frames++) {
+    const region = frames * BLOCK;
+    if (slackMs > toMs(region) * 0.95) continue;
+    const need = region + LOOKAHEAD + FADE + Math.ceil(slackMs * RATE / 1000);
+    const delay = Math.ceil(need / QUANTUM) * QUANTUM;
+    if (delay > MAX_DELAY) return null;
+    const gateMs = Math.min(toMs(region) * 0.95, toMs(delay - region - LOOKAHEAD - FADE));
+    return {frames, delay, gateMs};
+  }
+  return null;
 }
-
-export const delayFor = pairMs => delayChunks(pairMs) * CHUNK;

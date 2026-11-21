@@ -1,5 +1,4 @@
 import {createSeparator} from '../src/separator/engine.mjs';
-import {CHUNK} from '../src/separator/timing.mjs';
 
 const $ = (s) => document.querySelector(s);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -149,7 +148,8 @@ async function run() {
     const xs = [...report.inference].sort((a, b) => a - b);
     report.mean = xs.reduce((a, b) => a + b, 0) / xs.length;
     report.p95 = xs[Math.min(xs.length - 1, Math.floor((xs.length - 1) * 0.95))];
-    report.budget = 2000 * CHUNK / ctx.sampleRate;
+    report.plan = engine.plan;
+    report.budget = engine.plan.gateMs;
     report.keepsUp = report.p95 < report.budget && engine.counters.misses === 0;
     report.latencyMean = report.latency.length ? report.latency.reduce((a, b) => a + b, 0) / report.latency.length : 0;
     report.latencyMax = report.latency.length ? Math.max(...report.latency) : 0;
